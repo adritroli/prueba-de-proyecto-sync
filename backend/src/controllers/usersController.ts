@@ -21,7 +21,7 @@ export const createUser = async (req: Request, res: Response) => {
 
     // Crear el usuario
     const [result]: any = await connection.query(
-      `INSERT INTO users (name, username, email, password, team_id, role_group_id, user_status, audit_date)
+      `INSERT INTO users (name, username, email, password, team_id, role_group_id, user_status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())`,
       [name, username, email, hashedPassword, team_id, role_group_id]
     );
@@ -224,7 +224,7 @@ export const updateUser = async (req: Request, res: Response) => {
     await connection.query(
       `UPDATE users 
        SET name = ?, username = ?, email = ?, 
-           team_id = ?, role_group_id = ?, modif_date = NOW()
+           team_id = ?, role_group_id = ?, updated_at = NOW()
        WHERE id = ?`,
       [name, username, email, team_id, role_group_id, id]
     );

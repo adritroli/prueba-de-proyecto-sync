@@ -18,6 +18,7 @@ import { MdMenuBook } from "react-icons/md";
 import { HiMiniInboxStack } from "react-icons/hi2";
 import { RiFolderSettingsFill } from "react-icons/ri";
 import { AlertCircle } from "lucide-react";
+import { IoAlertCircle } from "react-icons/io5";
 
 import { NavMain } from "@/components/nav-main";
 import { NavProjects } from "@/components/nav-projects";
@@ -43,7 +44,7 @@ const data = {
   user: {
     name: "shadcn",
     email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "/avatars/adrian.jpg",
   },
   teams: [
     {
@@ -75,7 +76,7 @@ const data = {
           url: "/",
         },
         {
-          title: "Tablero Kanban",
+          title: "Kanban Board",
           url: "/kanban",
         },
       ],
@@ -144,7 +145,7 @@ const data = {
     {
       title: "Reclamos",
       url: "#",
-      icon: AlertCircle,
+      icon: IoAlertCircle,
       items: [
         {
           title: "Create Claim",

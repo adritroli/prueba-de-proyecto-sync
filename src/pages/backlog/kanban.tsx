@@ -4,12 +4,30 @@ import { Task, TaskStatus, Sprint } from "@/types/tasks";
 import { TaskCard } from "@/components/tasks/task-card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search } from "lucide-react";
+import "@/styles/kanban.css"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { MoreHorizontal } from "lucide-react";
 
 const columns: { id: TaskStatus; title: string }[] = [
   { id: "backlog", title: "Backlog" },
-  { id: "todo", title: "To Do" },
+  { id: "todo", title: "Asignado" },
   { id: "in_progress", title: "En Progreso" },
   { id: "review", title: "En Review" },
   { id: "done", title: "Completado" },
@@ -23,6 +41,12 @@ export default function KanbanPage() {
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [statusMap, setStatusMap] = useState<{ [key: string]: number }>({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProject, setSelectedProject] = useState<string>("all");
+  const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [projects, setProjects] = useState<Array<{ id: number; name: string }>>(
+    []
+  );
   const activeSprint = sprints.find((sprint) => sprint.status === "active");
 
   useEffect(() => {
@@ -30,6 +54,7 @@ export default function KanbanPage() {
     fetchUsers();
     fetchSprints();
     fetchTaskStatuses();
+    fetchProjects();
   }, []);
 
   const fetchTasks = async () => {
@@ -78,6 +103,25 @@ export default function KanbanPage() {
       console.error("Error fetching task statuses:", error);
     }
   };
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/projects");
+      const data = await response.json();
+      setProjects(data.data || []);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    }
+  };
+
+  const filteredTasks = tasks.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesProject = selectedProject === "all" || task.project_id?.toString() === selectedProject;
+    const matchesUser = selectedUser === "all" || task.assignee?.toString() === selectedUser;
+    
+    return matchesSearch && matchesProject && matchesUser;
+  });
 
   const handleDragStart = (e: React.DragEvent, task: Task) => {
     e.dataTransfer.setData("taskId", task.id.toString());
@@ -174,63 +218,125 @@ export default function KanbanPage() {
     );
   }
 
+  const displayUsers = users.slice(0, 4);
+  const remainingUsers = users.slice(4);
+
   return (
     <DefaultLayout>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-3">
         <div>
-          <h1 className="text-2xl font-bold">Tablero Kanban</h1>
-          <p className="text-muted-foreground">
-            Gestione sus tareas en un tablero visual
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setSelectedTask(undefined);
-            setCreateTaskOpen(true);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Tarea
-        </Button>
-        {activeSprint && (
+          <h1 className="text-2xl font-bold">Board Tasks</h1>
+          {activeSprint && (
           <div className="text-sm text-muted-foreground">
             Sprint Activo: {activeSprint.name}
           </div>
         )}
+        </div>
+     
+       
+      </div>
+
+      <div>
+        <Card className="mb-4 p-4 flex flex-row gap-4 items-center tarjeta-filtros-kanban">
+          <div className="relative flex flex-row gap-3">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar tareas..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          
+
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-2">
+              {displayUsers.map((user) => (
+                <Avatar
+                  key={user.id}
+                  className={`h-8 w-8 border-2 border-background cursor-pointer hover:scale-105 transition-transform ${
+                    selectedUser === user.id.toString() ? 'ring-2 ring-primary' : ''
+                  }`}
+                  onClick={() => setSelectedUser(
+                    selectedUser === user.id.toString() ? "all" : user.id.toString()
+                  )}
+                >
+                  <AvatarImage src={user.avatar || `/avatars/${user.id}.png`} />
+                  <AvatarFallback>{user.name[0]}</AvatarFallback>
+                </Avatar>
+              ))}
+              {remainingUsers.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Avatar
+                      className="h-8 w-8 border-2 border-background cursor-pointer hover:scale-105 transition-transform"
+                    >
+                      <AvatarFallback>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-2">
+                    <div className="flex flex-col gap-1">
+                      {remainingUsers.map((user) => (
+                        <div
+                          key={user.id}
+                          className={`flex items-center gap-2 p-1 rounded hover:bg-muted cursor-pointer ${
+                            selectedUser === user.id.toString() ? 'bg-muted' : ''
+                          }`}
+                          onClick={() => setSelectedUser(
+                            selectedUser === user.id.toString() ? "all" : user.id.toString()
+                          )}
+                        >
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={user.avatar || `/avatars/${user.id}.png`} />
+                            <AvatarFallback>{user.name[0]}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{user.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+          </div>
+          </div>
+          <Select
+            value={selectedProject}
+            onValueChange={setSelectedProject}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filtrar por proyecto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los proyectos</SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id.toString()}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Card>
       </div>
 
       <div className="grid grid-cols-5 gap-3 h-[calc(100vh-200px)]">
         {columns.map((column) => (
-          <div
-            key={column.id}
-            className="flex flex-col overflow-y-auto h-full scrollbar-thin"
-          >
-            <div className="bg-muted p-2 rounded-t-md flex justify-between items-center overflow-y-auto">
+          <div key={column.id} className="flex flex-col overflow-y-auto h-full scrollbar-thin">
+            <div className="bg-muted p-2 rounded-t-md flex justify-between items-center">
               <h3 className="font-medium">{column.title}</h3>
               <span className="text-xs text-muted-foreground">
-                {
-                  tasks.filter(
-                    (task) =>
-                      task.status_name === column.id &&
-                      (!activeSprint || task.sprint_id === activeSprint.id)
-                  ).length
-                }
+                {filteredTasks.filter(task => task.status_name === column.id).length}
               </span>
             </div>
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id)}
-              className="flex-1 overflow-auto bg-muted/50 p-2 rounded-b-md transition-colors"
+              className="flex-1 overflow-auto bg-muted/50 p-2 rounded-b-md transition-colors prueba-scrollbar"
             >
-              {tasks
-                .filter(
-                  (task) =>
-                    task.status_name === column.id &&
-                    (activeSprint
-                      ? task.sprint_id === activeSprint.id
-                      : !task.sprint_id)
-                )
+              {filteredTasks
+                .filter(task => task.status_name === column.id)
                 .map((task) => (
                   <div
                     key={task.id}

@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CircleDot, Triangle } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface User {
   id: number;
@@ -63,8 +64,8 @@ export function TaskCard({ task }: TaskCardProps) {
       onClick={() => navigate(`/task/${task.task_key}`)}
     >
       <CardHeader className="px-3">
-        <div className="flex flex-row justify-between r">
-          <div>
+        <div className="flex flex-row justify-between">
+          <div className="flex-1 min-w-0">
             <CardTitle className="text-xs font-medium">
               <Badge
                 variant="outline"
@@ -72,12 +73,30 @@ export function TaskCard({ task }: TaskCardProps) {
                   backgroundColor: task.project_badge_color || "#4B5563",
                   color: "white",
                 }}
-                className=""
               >
                 {task.task_key}
               </Badge>
             </CardTitle>
-            <div className="text-sm pt-1">{task.title}</div>
+            <TooltipProvider delayDuration={2000}> {/* Aumentar delay a 2 segundos */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-sm pt-1 line-clamp-2 group">
+                    <span className="cursor-default">{task.title}</span>
+                    <span className="hidden group-hover:inline text-xs text-muted-foreground ml-1">
+                      (Clic para ver más)
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent 
+                  side="bottom" 
+                  className="max-w-[300px] p-2 text-xs"
+                  sideOffset={5}
+                >
+                  <p className="font-medium">Título completo:</p>
+                  <p className="mt-1">{task.title}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div className="tooltip-container">
             {priorityIcons[task.priority]}
@@ -86,7 +105,26 @@ export function TaskCard({ task }: TaskCardProps) {
         </div>
       </CardHeader>
       <CardContent className="px-3">
-        <p className="text-xs text-muted-foreground mb-2">{task.description}</p>
+        <TooltipProvider delayDuration={10000}> {/* Aumentar delay a 2 segundos */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p className="text-xs text-muted-foreground mb-2 line-clamp-2 group">
+                <span className="cursor-default">{task.description}</span>
+                <span className="hidden group-hover:inline text-xs text-muted-foreground ml-1">
+                  (mantener para ver más)
+                </span>
+              </p>
+            </TooltipTrigger>
+            <TooltipContent 
+              side="bottom" 
+              className="max-w-[300px] p-2 text-xs"
+              sideOffset={5}
+            >
+              <p className="font-medium">Descripción completa:</p>
+              <p className="mt-1">{task.description}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <div className="flex justify-between items-center">
           <div className="flex w-full items-center justify-between">
             <div>

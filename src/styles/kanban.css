@@ -1,0 +1,12 @@
+.tarjeta-filtros-kanban{
+    background: rgba(60, 255, 0, 0);
+    padding: 0%;
+    border: none;
+    box-shadow: none;
+    justify-content: space-between;
+}
+
+.prueba-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #7eef51 transparent;
+}

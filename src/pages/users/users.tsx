@@ -36,6 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { CreateUserDialog } from "@/components/users/create-user-dialog";
 
 interface PaginatedResponse {
   data: User[];
@@ -64,6 +65,7 @@ export default function UsersPage() {
   const [openDropdowns, setOpenDropdowns] = useState<{
     [key: number]: boolean;
   }>({});
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -201,7 +203,7 @@ export default function UsersPage() {
             Agregue, edite o elimine usuarios de su empresa.
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Usuario
         </Button>
@@ -517,6 +519,13 @@ export default function UsersPage() {
         user={selectedUser}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+      />
+      <CreateUserDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={fetchUsers}
+        roles={roles}
+        teams={teams}
       />
     </DefaultLayout>
   );
