@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# User uploaded content
+public/avatars/*
+public/banners/*
+!public/avatars/default.png
+!public/banners/default-banner.jpg
