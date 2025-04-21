@@ -2,22 +2,15 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import {
   AudioWaveform,
-  BookOpen,
-  Bot,
   Command,
-  Frame,
   GalleryVerticalEnd,
-  Map,
-  PieChart,
-  Settings2,
-  SquareTerminal,
+  LucideIcon,
 } from "lucide-react";
 import { ImHome } from "react-icons/im";
 import { FaUsersCog } from "react-icons/fa";
 import { MdMenuBook } from "react-icons/md";
 import { HiMiniInboxStack } from "react-icons/hi2";
 import { RiFolderSettingsFill } from "react-icons/ri";
-import { AlertCircle } from "lucide-react";
 import { IoAlertCircle } from "react-icons/io5";
 
 import { NavMain } from "@/components/nav-main";
@@ -78,6 +71,10 @@ const data = {
         {
           title: "Kanban Board",
           url: "/kanban",
+        },
+        {
+          title: "Calendar",
+          url: "/calendar",
         },
       ],
     },

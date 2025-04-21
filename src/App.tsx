@@ -19,6 +19,7 @@ import ReclamosPage from "./pages/claims/reclamos";
 import { ProtectedRoute } from '@/components/protected-route';
 import AccountPage from "./pages/profile/account";
 import PortalClaimPage from "./pages/claims/portalClaim";
+import CalendarPage from "./pages/calendar/calendar";
 
 const router = createBrowserRouter([
   {
@@ -38,6 +39,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <PortalClaimPage />
+      </ProtectedRoute>
+    ),  
+  },
+  {
+    path: "/calendar",
+    element: (
+      <ProtectedRoute>
+        <CalendarPage />
       </ProtectedRoute>
     ),  
   },

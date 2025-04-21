@@ -24,13 +24,13 @@ const pageTitles: Record<string, string> = {
   "/projects": "Projects",
   "/backlog": "Backlog",
   "/kanban": "Kanban",
-  "/profile": "Profile",
+  "/account": "Account Settings",
   "/timesheet": "Timesheet",
   "/task/": "Task Details",
   "/tickets": "Backlog",
   "/sprint": "Sprint",
   "/pruebas": "Pruebas",
-  "/tablesheet": "Carga de Horas",
+  "/calendar": "Calendar",
   "/rolePermissions": "Role Permissions",
 };
 
