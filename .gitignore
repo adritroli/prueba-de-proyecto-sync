@@ -28,3 +28,6 @@ public/avatars/*
 public/banners/*
 !public/avatars/default.png
 !public/banners/default-banner.jpg
+
+# quitar emv 
+.env
