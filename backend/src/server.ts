@@ -1,4 +1,6 @@
 import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
 import { requestLogger } from './middleware/logger';
 import logger from './utils/logger';
 import userRoutes from './routes/usersRoutes';
@@ -16,6 +18,21 @@ import path from 'path';
 import { errorMiddleware } from './middleware/performance';
 
 const app = express();
+
+// Middleware de seguridad
+app.use(cors({
+  origin: 'http://localhost:5173', // Puerto por defecto de Vite
+  credentials: true
+}));
+app.use(helmet());
+
+// Rate limiting
+import rateLimit from 'express-rate-limit';
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100 // límite de 100 peticiones por ventana
+});
+app.use('/api/auth', limiter);
 
 // Middleware de logging
 app.use(requestLogger);

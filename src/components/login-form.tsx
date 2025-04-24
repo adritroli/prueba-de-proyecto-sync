@@ -29,15 +29,20 @@ export function LoginForm({
     try {
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error("Credenciales inválidas")
+        throw new Error(data.message || "Error al iniciar sesión")
       }
 
-      const data = await response.json()
       const userData = {
         id: data.user.id,
         username: data.user.username || data.user.name,
@@ -50,9 +55,12 @@ export function LoginForm({
       
       toast.success("Inicio de sesión exitoso")
       navigate("/")
-    } catch (error) {
-      toast.error("Error al iniciar sesión")
-      console.error("Error de autenticación:", error)
+    } catch (error: any) {
+      toast.error(error.message || "Error al conectar con el servidor")
+      logger.error("Error de autenticación:", { 
+        error: error.message,
+        email 
+      })
     } finally {
       setIsLoading(false)
     }
