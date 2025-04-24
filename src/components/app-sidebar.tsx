@@ -76,6 +76,10 @@ const data = {
           title: "Calendar",
           url: "/calendar",
         },
+        {
+          title: "Pagina de Pruebas",
+          url: "/pruebas",
+        },
       ],
     },
     {

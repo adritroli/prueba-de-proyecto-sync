@@ -168,7 +168,7 @@ export const getAllDocuments: RequestHandler = async (req, res) => {
 
     const formattedDocuments = documents.map((doc: RowDataPacket) => ({
       ...doc,
-      tags: doc.tags ? JSON.parse(doc.tags as string) : [],
+      tags: doc.tags ? JSON.parse(doc.tags.toString()) : [],
     }));
 
     res.json(formattedDocuments);

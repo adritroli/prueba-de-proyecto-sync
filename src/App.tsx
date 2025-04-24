@@ -20,6 +20,7 @@ import { ProtectedRoute } from '@/components/protected-route';
 import AccountPage from "./pages/profile/account";
 import PortalClaimPage from "./pages/claims/portalClaim";
 import CalendarPage from "./pages/calendar/calendar";
+import PaginaPruebasPage from "./pages/pruebas/paginaPruebas";
 
 const router = createBrowserRouter([
   {
@@ -31,6 +32,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <DashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/pruebas",
+    element: (
+      <ProtectedRoute>
+        <PaginaPruebasPage />
       </ProtectedRoute>
     ),
   },
