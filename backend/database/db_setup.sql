@@ -178,3 +178,34 @@ CREATE INDEX idx_users_role ON users(role_group_id);
 
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS banner_url VARCHAR(255) DEFAULT '/banners/default-banner.jpg';
+
+-- Tabla de módulos del sistema
+CREATE TABLE IF NOT EXISTS modulos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    modulo_name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de permisos por rol
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    role_group_id INT NOT NULL,
+    modulo_id INT NOT NULL,
+    view BOOLEAN DEFAULT FALSE,
+    create BOOLEAN DEFAULT FALSE,
+    edit BOOLEAN DEFAULT FALSE,
+    delete BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (role_group_id) REFERENCES role_group(id) ON DELETE CASCADE,
+    FOREIGN KEY (modulo_id) REFERENCES modulos(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_role_module (role_group_id, modulo_id)
+);
+
+-- Insertar módulos base
+INSERT INTO modulos (modulo_name, description) VALUES
+('users', 'Gestión de usuarios'),
+('teams', 'Gestión de equipos'),
+('projects', 'Gestión de proyectos'),
+('tasks', 'Gestión de tareas'),
+('documentation', 'Documentación'),
+('settings', 'Configuración del sistema');

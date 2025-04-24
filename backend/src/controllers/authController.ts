@@ -3,6 +3,7 @@ import { pool } from '../config/db';
 import { RowDataPacket } from 'mysql2/promise';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import logger from '../utils/logger';
 
 interface UserResult extends RowDataPacket {
   id: number;
@@ -54,6 +55,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
   } catch (error) {
     console.error('Error en login:', error);
+    logger.error('Error en login:', { error });
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
@@ -97,5 +99,69 @@ export const getUserPermissions = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error al obtener permisos:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
+export const getRoles = async (req: Request, res: Response) => {
+  try {
+    const [roles] = await pool.query('SELECT * FROM role_group ORDER BY name_rol');
+    res.json(roles);
+  } catch (error) {
+    logger.error('Error al obtener roles:', { error });
+    res.status(500).json({ message: 'Error al obtener roles' });
+  }
+};
+
+export const getModules = async (req: Request, res: Response) => {
+  try {
+    const [modules] = await pool.query('SELECT * FROM modulos ORDER BY modulo_name');
+    res.json(modules);
+  } catch (error) {
+    logger.error('Error al obtener módulos:', { error });
+    res.status(500).json({ message: 'Error al obtener módulos' });
+  }
+};
+
+export const getRolePermissions = async (req: Request, res: Response) => {
+  try {
+    const { roleId } = req.params;
+    const [permissions] = await pool.query(
+      'SELECT * FROM role_permissions WHERE role_group_id = ?',
+      [roleId]
+    );
+    res.json(permissions);
+  } catch (error) {
+    logger.error('Error al obtener permisos:', { error });
+    res.status(500).json({ message: 'Error al obtener permisos' });
+  }
+};
+
+export const updateRolePermissions = async (req: Request, res: Response) => {
+  const connection = await pool.getConnection();
+  try {
+    const { roleId } = req.params;
+    const { moduleId, ...permissions } = req.body;
+
+    await connection.beginTransaction();
+
+    await connection.query(
+      `INSERT INTO role_permissions (role_group_id, modulo_id, view, can_create, edit, can_delete)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+       view = VALUES(view),
+       can_create = VALUES(can_create),
+       edit = VALUES(edit),
+       can_delete = VALUES(can_delete)`,
+      [roleId, moduleId, permissions.view, permissions.can_create, permissions.edit, permissions.can_delete]
+    );
+
+    await connection.commit();
+    res.json({ message: 'Permisos actualizados' });
+  } catch (error) {
+    await connection.rollback();
+    logger.error('Error al actualizar permisos:', { error, roleId: req.params.roleId, moduleId: req.body.moduleId });
+    res.status(500).json({ message: 'Error al actualizar permisos' });
+  } finally {
+    connection.release();
   }
 };
