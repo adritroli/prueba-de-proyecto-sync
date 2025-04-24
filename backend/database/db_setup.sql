@@ -80,11 +80,12 @@ CREATE TABLE tasks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     task_number INT,
     project_code VARCHAR(10),
-    task_key VARCHAR(20),  -- Ya no será una columna generada
+    task_key VARCHAR(20),
     title VARCHAR(200) NOT NULL,
     description TEXT,
     priority ENUM('low', 'medium', 'high', 'urgent') DEFAULT 'medium',
     assignee INT,
+    created_by INT,  -- Nuevo campo
     sprint_id INT,
     story_points INT DEFAULT 1,
     tags JSON,
@@ -94,6 +95,7 @@ CREATE TABLE tasks (
     status_id INT NOT NULL,
     project_id INT,
     FOREIGN KEY (assignee) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,  -- Nueva relación
     FOREIGN KEY (sprint_id) REFERENCES sprints(id) ON DELETE SET NULL,
     FOREIGN KEY (status_id) REFERENCES task_status(id),
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL

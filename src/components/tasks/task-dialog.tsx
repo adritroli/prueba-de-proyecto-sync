@@ -76,7 +76,14 @@ export function TaskDialog({
       alert("Debe seleccionar un proyecto");
       return;
     }
-    await onSave({ ...formData, project_id: parseInt(formData.project_id) });
+    // Obtener el ID del usuario desde el estado global o localStorage
+    const userId = localStorage.getItem('userId'); // o usar tu manejador de estado
+
+    await onSave({ 
+      ...formData, 
+      project_id: parseInt(formData.project_id),
+      userId: parseInt(userId || '1') // Asegúrate de manejar el caso donde no hay userId
+    });
     onOpenChange(false);
   };
 

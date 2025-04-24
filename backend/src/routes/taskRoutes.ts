@@ -16,7 +16,8 @@ import {
   getTaskByKey,
   getTaskComments,
   addTaskComment,
-  getTaskSLA
+  getTaskSLA,
+  updateTaskUser  
 } from '../controllers/taskController';
 
 const router = Router();
@@ -38,5 +39,6 @@ router.get('/task/:taskKey', getTaskByKey as RequestHandler);
 router.get('/task/:taskKey/comments', getTaskComments as RequestHandler);
 router.post('/task/:taskKey/comments', addTaskComment as RequestHandler);
 router.get('/task/:taskId/sla', getTaskSLA as RequestHandler);
+router.put('/task/:taskKey/update-user', updateTaskUser);
 
 export default router;

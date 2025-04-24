@@ -36,7 +36,7 @@ export function NavProjects({
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>123456789123456</SidebarGroupLabel>
+      <SidebarGroupLabel>Tableros Kanban</SidebarGroupLabel>
       <SidebarMenu>
         {projects.map((item) => (
           <SidebarMenuItem key={item.name}>
@@ -79,7 +79,7 @@ export function NavProjects({
         <SidebarMenuItem>
           <SidebarMenuButton className="text-sidebar-foreground/70">
             <MoreHorizontal className="text-sidebar-foreground/70" />
-            <span>123</span>
+            <span>agregar tableros aca</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

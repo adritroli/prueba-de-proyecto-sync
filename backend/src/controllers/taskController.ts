@@ -263,6 +263,7 @@ export const createTask = async (req: Request, res: Response) => {
   const connection = await pool.getConnection();
   try {
     const { title, description, priority, story_points, assignee, tags, project_id } = req.body;
+    const created_by = req.body.userId; // Obtenemos el ID del usuario que crea la tarea
 
     await connection.beginTransaction();
 
@@ -293,8 +294,8 @@ export const createTask = async (req: Request, res: Response) => {
         task_number, project_code, task_key,
         title, description, priority, 
         story_points, assignee, tags, 
-        status_id, project_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        status_id, project_id, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nextNumber,
         projectCode,
@@ -306,7 +307,8 @@ export const createTask = async (req: Request, res: Response) => {
         assignee,
         JSON.stringify(tags),
         ((await connection.query<RowDataPacket[]>('SELECT id FROM task_status WHERE name = "backlog" LIMIT 1'))[0] as RowDataPacket[])[0].id,
-        project_id
+        project_id,
+        created_by
       ]
     );
 
@@ -316,10 +318,12 @@ export const createTask = async (req: Request, res: Response) => {
              ts.name as status_name, 
              ts.color as status_color,
              u.name as assignee_name,
+             u2.name as creator_name,
              p.code as project_code
       FROM tasks t
       LEFT JOIN task_status ts ON t.status_id = ts.id
       LEFT JOIN users u ON t.assignee = u.id
+      LEFT JOIN users u2 ON t.created_by = u2.id
       LEFT JOIN projects p ON t.project_id = p.id
       WHERE t.id = ?
     `, [result.insertId]);
@@ -456,10 +460,16 @@ export const getTaskByKey = async (req: Request, res: Response) => {
              ts.name as status_name,
              ts.color as status_color,
              u.name as assignee_name,
+             u.last_name as assignee_last_name,
+             u.avatar as assignee_avatar,
+             c.name as creator_name,
+             c.last_name as creator_last_name,
+             c.avatar as creator_avatar,
              p.code as project_code
       FROM tasks t
       LEFT JOIN task_status ts ON t.status_id = ts.id
       LEFT JOIN users u ON t.assignee = u.id
+      LEFT JOIN users c ON t.created_by = c.id
       LEFT JOIN projects p ON t.project_id = p.id
       WHERE t.task_key = ?
     `, [taskKey]);
@@ -529,6 +539,47 @@ export const addTaskComment = async (req: Request, res: Response) => {
     await connection.rollback();
     console.error('Error adding comment:', error);
     res.status(500).json({ message: 'Error al agregar comentario' });
+  } finally {
+    connection.release();
+  }
+};
+
+export const updateTaskUser = async (req: Request, res: Response) => {
+  const connection = await pool.getConnection();
+  try {
+    const { taskKey } = req.params;
+    const { field, userId } = req.body;
+
+    await connection.beginTransaction();
+
+    const updateField = field === 'assignee' ? 'assignee' : 'created_by';
+    
+    await connection.query(
+      `UPDATE tasks SET ${updateField} = ? WHERE task_key = ?`,
+      [userId, taskKey]
+    );
+
+    const [updatedTask] = await connection.query<RowDataPacket[]>(`
+      SELECT t.*, 
+             ts.name as status_name,
+             ts.color as status_color,
+             u.name as assignee_name,
+             u.avatar as assignee_avatar,
+             c.name as creator_name,
+             c.avatar as creator_avatar
+      FROM tasks t
+      LEFT JOIN task_status ts ON t.status_id = ts.id
+      LEFT JOIN users u ON t.assignee = u.id
+      LEFT JOIN users c ON t.created_by = c.id
+      WHERE t.task_key = ?
+    `, [taskKey]);
+
+    await connection.commit();
+    res.json(updatedTask[0]);
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error updating task user:', error);
+    res.status(500).json({ message: 'Error al actualizar usuario de la tarea' });
   } finally {
     connection.release();
   }

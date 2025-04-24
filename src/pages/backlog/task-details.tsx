@@ -63,6 +63,7 @@ interface LinkedTask {
 interface User {
   id: number;
   name: string;
+  last_name: string;
   avatar: string;
 }
 
@@ -328,7 +329,7 @@ export default function TaskDetailsPage() {
 
   const handleUpdateUser = async (field: "creator" | "assignee", userId: string | number) => {
     try {
-      await fetch(`http://localhost:5000/api/task/${taskKey}/update-user`, {
+      const response = await fetch(`http://localhost:5000/api/task/${taskKey}/update-user`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -336,7 +337,13 @@ export default function TaskDetailsPage() {
           userId: userId === "unassigned" ? null : Number(userId),
         }),
       });
-      fetchTaskDetails();
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar usuario');
+      }
+
+      const updatedTask = await response.json();
+      setTask(updatedTask);
       toast.success("Usuario actualizado correctamente");
     } catch (error) {
       console.error("Error updating user:", error);
@@ -609,59 +616,32 @@ export default function TaskDetailsPage() {
 
               <div>
                 <Label>Informador</Label>
-                {editingField === "creator" ? (
-                  <Select
-                    value={String(task.created_by)}
-                    onValueChange={(value) =>
-                      handleUpdateUser("creator", parseInt(value))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={String(user.id)}>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={getAvatarUrl(user)} />
-                              <AvatarFallback>{user.name[0]}</AvatarFallback>
-                            </Avatar>
-                            {user.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div
-                    className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer"
-                    onClick={() => setEditingField("creator")}
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage
-                        src={getAvatarUrl({
-                          id: task.created_by,
-                          avatar: task.creator_avatar,
-                        })}
-                      />
-                      <AvatarFallback>{task.creator_name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <span>{task.creator_name}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 p-2 mt-2  rounded">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage
+                      src={getAvatarUrl({
+                        id: task.created_by,
+                        avatar: task.creator_avatar,
+                      })}
+                    />
+                    <AvatarFallback>
+                      {task.creator_name ? task.creator_name[0] : 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium">
+                    {task.creator_name} {task.creator_last_name && ` ${task.creator_last_name}`}
+                  </span>
+                </div>
               </div>
 
               <div>
-                <Label>Asignado a</Label>
+                <Label className="mb-2">Asignado a</Label>
                 {editingField === "assignee" ? (
                   <Select
-                    value={task.assignee ? String(task.assignee) : "unassigned"}
-                    onValueChange={(value) =>
-                      handleUpdateUser("assignee", value)
-                    }
+                    defaultValue={task.assignee ? String(task.assignee) : "unassigned"}
+                    onValueChange={(value) => handleUpdateUser("assignee", value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Sin asignar" />
                     </SelectTrigger>
                     <SelectContent>
@@ -673,7 +653,7 @@ export default function TaskDetailsPage() {
                               <AvatarImage src={getAvatarUrl(user)} />
                               <AvatarFallback>{user.name[0]}</AvatarFallback>
                             </Avatar>
-                            {user.name}
+                            {user.name} {user.last_name && ` ${user.last_name}`}
                           </div>
                         </SelectItem>
                       ))}
@@ -697,7 +677,9 @@ export default function TaskDetailsPage() {
                             {task.assignee_name?.[0]}
                           </AvatarFallback>
                         </Avatar>
-                        <span>{task.assignee_name}</span>
+                        <span>
+                          {task.assignee_name} {task.assignee_last_name && ` ${task.assignee_last_name}`}
+                        </span>
                       </>
                     ) : (
                       <span className="text-muted-foreground">Sin asignar</span>
