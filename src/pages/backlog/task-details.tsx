@@ -1,6 +1,6 @@
 import DefaultLayout from "@/config/layout"; // Fix DefaultLayout import
 import { useEffect, useState } from "react";
-import { Task } from "@/types/tasks";
+import { Task, TaskPriority } from "@/types/tasks";
 import { useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -84,9 +84,12 @@ export default function TaskDetailsPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
-  const [editingField, setEditingField] = useState<"creator" | "assignee" | null>(null);
+  const [editingField, setEditingField] = useState<"creator" | "assignee" | "priority" | null>(null);
   const [slaData, setSLAData] = useState<SLAData | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [taskStatuses, setTaskStatuses] = useState<any[]>([]);
+  const [sprints, setSprints] = useState<any[]>([]);
+  const [showTagDialog, setShowTagDialog] = useState(false);
 
   const getAvatarUrl = (user: any) => {
     if (!user) return "/avatars/default.png";
@@ -113,11 +116,95 @@ export default function TaskDetailsPage() {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'done': return 'bg-green-100 text-green-800';
+      case 'in_progress': return 'bg-blue-100 text-blue-800';
+      case 'review': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority: TaskPriority) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-500';
+      case 'high': return 'bg-amber-500';
+      case 'medium': return 'bg-blue-500';
+      default: return 'bg-slate-500';
+    }
+  };
+
+  const handleUpdateTaskStatus = async (statusId: number) => {
+    try {
+      await fetch(`http://localhost:5000/api/task/${taskKey}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status_id: statusId })
+      });
+      fetchTaskDetails();
+      toast.success('Estado actualizado');
+    } catch (error) {
+      toast.error('Error al actualizar el estado');
+    }
+  };
+
+  const handleUpdatePriority = async (priority: TaskPriority) => {
+    try {
+      await fetch(`http://localhost:5000/api/task/${taskKey}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority })
+      });
+      fetchTaskDetails();
+      toast.success('Prioridad actualizada');
+    } catch (error) {
+      toast.error('Error al actualizar la prioridad');
+    }
+  };
+
+  const handleUpdateSprint = async (sprintId: number | null) => {
+    try {
+      await fetch(`http://localhost:5000/api/task/${taskKey}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sprint_id: sprintId })
+      });
+      fetchTaskDetails();
+      toast.success('Sprint actualizado');
+    } catch (error) {
+      toast.error('Error al actualizar el sprint');
+    }
+  };
+
+  const fetchTaskStatuses = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/task-status');
+      const data = await response.json();
+      setTaskStatuses(data);
+    } catch (error) {
+      console.error('Error fetching task statuses:', error);
+      toast.error('Error al cargar estados de tarea');
+    }
+  };
+
+  const fetchSprints = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/sprints');
+      const data = await response.json();
+      setSprints(data);
+    } catch (error) {
+      console.error('Error fetching sprints:', error);
+      toast.error('Error al cargar sprints');
+    }
+  };
+
   useEffect(() => {
     fetchTaskDetails();
     fetchComments();
     fetchLinkedTasks();
     fetchUsers();
+    fetchTaskStatuses();
+    fetchSprints();
     if (taskKey) {
       fetchSLAData();
     }
@@ -349,7 +436,6 @@ export default function TaskDetailsPage() {
       console.error("Error updating user:", error);
       toast.error("Error al actualizar el usuario");
     }
-    setEditingField(null);
   };
 
   if (!task) {
@@ -361,42 +447,126 @@ export default function TaskDetailsPage() {
       <div className="w-full flex flex-row gap-3">
         <div className="w-full">
           <div className="mb-8">
+            {/* Título de la tarea */}
             <div className="flex justify-between items-start mb-4">
               <div className="w-full">
                 <h1 className="text-3xl font-bold mb-2">
-                  <span className="text-muted-foreground mr-2">
-                    {task.task_key}
-                  </span>
+                  <span className="text-muted-foreground mr-2">{task.task_key}</span>
                 </h1>
-                <Card className="w-full tarjeta-titulo">
-                  <h1 className="text-2xl font-bold pl-3 pr-3  ">
-                    {task.title}
-                  </h1>
+                <Card className="w-full p-3 tarjeta-titulo">
+                  <h1 className="text-2xl font-bold">{task.title}</h1>
                 </Card>
               </div>
             </div>
 
-            <Card className="tarjeta-descripcion">
-              <h2 className="text-xl font-semibold ">Descripción</h2>
-              <p className="">{task.description}</p>
-              <div className="flex gap-2 items-center">
-                <Badge>{task.project_code}</Badge>
-                <Badge variant="outline">{task.status_name}</Badge>
-                <Badge className="bg-blue-500">{task.priority}</Badge>
-                <Badge variant="secondary">
-                  {task.story_points} story points
-                </Badge>
+            {/* Detalles y descripción */}
+            <Card className=" tarjeta-descripcion">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {/* Estado */}
+                <div>
+                  <Label className="text-sm text-muted-foreground">Estado</Label>
+                  <div className="mt-2">
+                    <Badge variant="outline" className={getStatusColor(task.status_name)}>
+                      {task.status_name}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Prioridad - Editable */}
+                <div>
+                  <Label className="text-sm text-muted-foreground">Prioridad</Label>
+                  <div
+                    className="flex items-center gap-2 p-2 mt-1 hover:bg-muted rounded cursor-pointer"
+                    onClick={() => setEditingField("priority")}
+                  >
+                    {editingField === "priority" ? (
+                      <Select
+                        value={task.priority}
+                        onValueChange={(value) => {
+                          handleUpdatePriority(value as TaskPriority);
+                          setEditingField(null);
+                        }}
+                      >
+                        <SelectTrigger className="w-full border-0 p-0 h-auto hover:bg-transparent">
+                          <Badge className={getPriorityColor(task.priority)}>
+                            {task.priority}
+                          </Badge>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">
+                            <Badge className="bg-slate-500">Baja</Badge>
+                          </SelectItem>
+                          <SelectItem value="medium">
+                            <Badge className="bg-blue-500">Media</Badge>
+                          </SelectItem>
+                          <SelectItem value="high">
+                            <Badge className="bg-amber-500">Alta</Badge>
+                          </SelectItem>
+                          <SelectItem value="urgent">
+                            <Badge className="bg-red-500">Urgente</Badge>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge className={getPriorityColor(task.priority)}>
+                        {task.priority}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sprint */}
+                <div>
+                  <Label className="text-sm text-muted-foreground">Sprint</Label>
+                  <div className="mt-2">
+                    <Badge variant="secondary">
+                      {task.sprint_name || "Sin sprint"}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Story Points */}
+                <div>
+                  <Label className="text-sm text-muted-foreground">Story Points</Label>
+                  <div className="mt-2">
+                    <Badge variant="secondary">{task.story_points} puntos</Badge>
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <Label className="text-sm text-muted-foreground">Etiquetas</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {task.tags?.map((tag) => (
+                      <Badge key={tag} variant="outline">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Descripción */}
+              <div>
+                <h2 className="text-xl font-semibold mb-2">Descripción</h2>
+                <div className="prose prose-sm max-w-none">
+                  {task.description || (
+                    <span className="text-muted-foreground italic">
+                      Sin descripción
+                    </span>
+                  )}
+                </div>
               </div>
             </Card>
 
-            <Card className="h-full tarjeta-enlazar-tareas">
-              <div className="">
+            {/* Anclaje de Incidencias */}
+            <Card className="tarjeta-enlazar-tareas">
+              <div>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <div className="flex flex-row justify-between items-center mb-2 mt-1 ">
-                      <h2 className="text-md font-semibold ">Anclar Issues</h2>
-                      <Button className="w-6 h-6 rounded-full  hover:bg-green-500">
-                        <Plus className="h-4 w-4 " />
+                    <div className="flex flex-row justify-between items-center mb-2">
+                      <h2 className="text-md font-semibold">Anclar Issues</h2>
+                      <Button className="w-6 h-6 rounded-full hover:bg-green-500">
+                        <Plus className="h-3 w-3" />
                       </Button>
                     </div>
                   </DialogTrigger>
@@ -431,57 +601,50 @@ export default function TaskDetailsPage() {
                     </Command>
                   </DialogContent>
                 </Dialog>
-
-                <div className="space-y-2">
-                  {linkedTasks.map((linkedTask) => (
-                    <Card
-                      key={linkedTask.task_key}
-                      className="tarjeta-tarea-enlazada"
-                    >
-                      <div className="flex flex-row w-full justify-between items-center">
-                        <div className="flex flex-row gap-2 items-center">
-                          <Link
-                            to={`/task/${linkedTask.task_key}`}
-                            className="font-medium transition-colors"
+              </div>
+              <div className="space-y-2">
+                {linkedTasks.map((linkedTask) => (
+                  <Card key={linkedTask.task_key} className="tarjeta-tarea-enlazada">
+                    <div className="flex flex-row w-full justify-between items-center">
+                      <div className="flex flex-row gap-2 items-center">
+                        <Link
+                          to={`/task/${linkedTask.task_key}`}
+                          className="font-medium transition-colors"
+                        >
+                          <Badge
+                            variant="outline"
+                            style={{
+                              backgroundColor: linkedTask.badge_color || "#4B5563",
+                              color: "white",
+                            }}
                           >
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor:
-                                  linkedTask.badge_color || "#4B5563",
-                                color: "white",
-                              }}
-                            >
-                              {linkedTask.task_key}
-                            </Badge>
-                          </Link>
-                          <p className="text-sm text-muted-foreground">
-                            {linkedTask.title}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{linkedTask.name}</Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-red-500/20 hover:text-red-500"
-                            onClick={() =>
-                              handleUnlinkTask(linkedTask.task_key)
-                            }
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
+                            {linkedTask.task_key}
+                          </Badge>
+                        </Link>
+                        <p className="text-sm text-muted-foreground">
+                          {linkedTask.title}
+                        </p>
                       </div>
-                    </Card>
-                  ))}
-                </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{linkedTask.name}</Badge>
+                        <Button
+                          variant="ghost"
+                          className="h-6 w-6 p-0 hover:bg-red-500/20 hover:text-red-500"
+                          onClick={() => handleUnlinkTask(linkedTask.task_key)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
             </Card>
 
-            <div className="mb-4 mt-4">
+            {/* Comentarios */}
+            <div className="mt-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Comments issue</h2>
+                <h2 className="text-xl font-semibold">Comentarios</h2>
                 <Button
                   onClick={() => setShowEditor(!showEditor)}
                   variant="outline"
@@ -503,8 +666,7 @@ export default function TaskDetailsPage() {
                   />
                 </div>
               )}
-
-              <div className="space-y-3 ">
+              <div className="space-y-2">
                 {comments.map((comment) => (
                   <div
                     key={comment.id}
@@ -518,14 +680,20 @@ export default function TaskDetailsPage() {
                             {comment.user_name[0]}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-semibold">
-                          {comment.user_name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">
+                            {comment.user_name}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(comment.created_at).toLocaleString()}
+                          </span>
+                        </div>
                       </div>
-                      <div
-                        className="comment-content text-sm pt-3 pl-5"
-                        dangerouslySetInnerHTML={{ __html: comment.comment }}
-                      />
+                      <div className="comment-content text-sm pt-3 pl-5">
+                        <div
+                          dangerouslySetInnerHTML={{ __html: comment.comment }}
+                        />
+                      </div>
                       <div className="comment-footer">
                         <div className="comment-actions">
                           <span
@@ -544,11 +712,7 @@ export default function TaskDetailsPage() {
                           <span
                             className="comment-action delete"
                             onClick={() => {
-                              if (
-                                confirm(
-                                  "¿Estás seguro de eliminar este comentario?"
-                                )
-                              ) {
+                              if (confirm("¿Estás seguro de eliminar este comentario?")) {
                                 handleDeleteComment(comment.id);
                               }
                             }}
@@ -556,9 +720,6 @@ export default function TaskDetailsPage() {
                             Eliminar
                           </span>
                         </div>
-                        <span className="comment-date">
-                          {new Date(comment.created_at).toLocaleString()}
-                        </span>
                       </div>
                     </div>
                   </div>
@@ -568,54 +729,55 @@ export default function TaskDetailsPage() {
           </div>
         </div>
         <div className="w-80">
-          <Card className="h-full p-2">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center flex-col p-0">
-                <div className="mt-2 p-2 rounded-lg border">
-                <Label className="pt-1 pb-2">SLA</Label>
-                  <div className="flex items-center justify-between gap-2">
-                    <Clock
+          <Card className="h-full card-sla">
+            <div className="space-y-2">
+              <div className="flex flex-col justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-row justify-center items-center gap-2">
+
+                <Label className="pt-1 pb-0 text-1xl">SLA</Label>
+                  <Clock
+                    className={
+                      slaData?.status === "active"
+                      ? "h-4 w-4 text-green-500"
+                      : "h-4 w-4 text-gray-500"
+                    }
+                    />
+                    </div>
+                  <div className="flex flex-col justify-between gap-1">
+                    <Badge
+                      variant="secondary"
                       className={
                         slaData?.status === "active"
-                          ? "h-4 w-4 text-green-500"
-                          : "h-4 w-4 text-gray-500"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
                       }
-                    />
-                    <div className="flex flex-col justify-between gap-1">
-                      <Badge
-                        variant="secondary"
-                        className={
-                          slaData?.status === "active"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100"
-                        }
-                      >
-                        {slaData?.status === "active"
-                          ? "En progreso"
-                          : "Inactivo"}{" "}
-                        - {formatTime(elapsedTime)}
-                      </Badge>
-                    </div>
+                    >
+                      {slaData?.status === "active"
+                        ? "En progreso"
+                        : "Inactivo"}{" "}
+                      - {formatTime(elapsedTime)}
+                    </Badge>
                   </div>
-                  {slaData?.start_time && (
-                    <div className="text-sm text-muted-foreground flex justify-between gap-2 mt-2">
-                      <div className="flex flex-row justify-between items-center gap-1">
-                        <span className="font-medium">Inicio actual:</span>
-                        {new Date(slaData.start_time).toLocaleString()}
-                      </div>
-                      {slaData.end_time && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">Último fin:</span>
-                          {new Date(slaData.end_time).toLocaleString()}
-                        </div>
-                      )}
+                </div>
+              </div>
+              {slaData?.start_time && (
+                <div className="text-sm text-muted-foreground flex justify-between gap-2 mt-2">
+                  <div className="flex flex-row justify-between items-center gap-1">
+                    <span className="font-medium">Inicio actual:</span>
+                    {new Date(slaData.start_time).toLocaleString()}
+                  </div>
+                  {slaData.end_time && (
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">Último fin:</span>
+                      {new Date(slaData.end_time).toLocaleString()}
                     </div>
                   )}
                 </div>
-              </div>
-
+              )}
               <div>
-                <Label>Informador</Label>
+                
+                <Label className="mt-5">Informador</Label>
                 <div className="flex items-center gap-2 p-2 mt-2  rounded">
                   <Avatar className="h-8 w-8">
                     <AvatarImage
@@ -633,7 +795,6 @@ export default function TaskDetailsPage() {
                   </span>
                 </div>
               </div>
-
               <div>
                 <Label className="mb-2">Asignado a</Label>
                 {editingField === "assignee" ? (
@@ -653,7 +814,9 @@ export default function TaskDetailsPage() {
                               <AvatarImage src={getAvatarUrl(user)} />
                               <AvatarFallback>{user.name[0]}</AvatarFallback>
                             </Avatar>
-                            {user.name} {user.last_name && ` ${user.last_name}`}
+                            <span>
+                              {user.name} {user.last_name && ` ${user.last_name}`}
+                            </span>
                           </div>
                         </SelectItem>
                       ))}
@@ -665,25 +828,23 @@ export default function TaskDetailsPage() {
                     onClick={() => setEditingField("assignee")}
                   >
                     {task.assignee ? (
-                      <>
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage
-                            src={getAvatarUrl({
-                              id: task.assignee,
-                              avatar: task.assignee_avatar,
-                            })}
-                          />
-                          <AvatarFallback>
-                            {task.assignee_name?.[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span>
-                          {task.assignee_name} {task.assignee_last_name && ` ${task.assignee_last_name}`}
-                        </span>
-                      </>
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage
+                          src={getAvatarUrl({
+                            id: task.assignee,
+                            avatar: task.assignee_avatar,
+                          })}
+                        />
+                        <AvatarFallback>
+                          {task.assignee_name?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
                     ) : (
                       <span className="text-muted-foreground">Sin asignar</span>
                     )}
+                    <span>
+                      {task.assignee_name} {task.assignee_last_name && ` ${task.assignee_last_name}`}
+                    </span>
                   </div>
                 )}
               </div>
