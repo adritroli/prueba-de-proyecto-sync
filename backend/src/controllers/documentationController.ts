@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { pool } from "../config/db";
+import logger, { logError, logInfo } from '../utils/logger';
 
 interface DocumentationSpace {
   id?: number;
@@ -23,12 +24,14 @@ interface Documentation {
 // Controladores para espacios de documentación
 export const getAllSpaces: RequestHandler = async (req, res) => {
   try {
+    logInfo('Fetching all documentation spaces');
     const [spaces] = await pool.query<RowDataPacket[]>(
       "SELECT * FROM documentation_spaces ORDER BY name"
     );
+    logInfo('Documentation spaces fetched successfully', { count: spaces.length });
     res.json(spaces);
   } catch (error) {
-    console.error("Error al obtener espacios de documentación:", error);
+    logError(error as Error, { context: 'getAllSpaces' });
     res.status(500).json({ message: "Error al obtener espacios de documentación" });
   }
 };
@@ -55,9 +58,12 @@ export const getSpaceById: RequestHandler = async (req, res) => {
 export const createSpace: RequestHandler = async (req, res) => {
   try {
     const { name, description, icon } = req.body as DocumentationSpace;
-    const created_by = req.body.user_id || 1; // Obtener el ID del usuario autenticado
+    const created_by = req.body.user_id || 1;
+
+    logInfo('Creating new documentation space', { name, created_by });
 
     if (!name) {
+      logInfo('Attempt to create space without name', { body: req.body });
       res.status(400).json({ message: "El nombre del espacio es obligatorio" });
       return;
     }
@@ -66,6 +72,12 @@ export const createSpace: RequestHandler = async (req, res) => {
       "INSERT INTO documentation_spaces (name, description, icon, created_by) VALUES (?, ?, ?, ?)",
       [name, description || "", icon || "📄", created_by]
     );
+
+    logInfo('Documentation space created successfully', { 
+      spaceId: result.insertId,
+      name 
+    });
+
     res.status(201).json({
       id: result.insertId,
       name,
@@ -74,7 +86,10 @@ export const createSpace: RequestHandler = async (req, res) => {
       created_by,
     });
   } catch (error) {
-    console.error("Error al crear espacio de documentación:", error);
+    logError(error as Error, { 
+      context: 'createSpace',
+      data: req.body 
+    });
     res.status(500).json({ message: "Error al crear espacio de documentación" });
   }
 };
@@ -136,7 +151,9 @@ export const deleteSpace: RequestHandler = async (req, res) => {
 export const getAllDocuments: RequestHandler = async (req, res) => {
   try {
     const { space_id } = req.query;
-
+    
+    logger.info('Fetching documents', { space_id });
+    
     let query = `
       SELECT d.*, 
              u1.username as created_by_username, 
@@ -171,9 +188,16 @@ export const getAllDocuments: RequestHandler = async (req, res) => {
       tags: doc.tags ? JSON.parse(doc.tags.toString()) : [],
     }));
 
+    logger.info('Documents fetched successfully', { 
+      count: formattedDocuments.length 
+    });
+    
     res.json(formattedDocuments);
   } catch (error) {
-    console.error("Error al obtener documentos:", error);
+    logError(error as Error, { 
+      context: 'getAllDocuments',
+      space_id: req.query.space_id 
+    });
     res.status(500).json({ message: "Error al obtener documentos" });
   }
 };
