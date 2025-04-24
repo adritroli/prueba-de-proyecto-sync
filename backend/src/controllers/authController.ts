@@ -122,14 +122,37 @@ export const getModules = async (req: Request, res: Response) => {
   }
 };
 
+interface RolePermissionRow extends RowDataPacket {
+  modulo_id: number;
+  id: number;
+  view: number;
+  can_create: number;
+  edit: number;
+  can_delete: number;
+  modulo_name: string;
+}
+
 export const getRolePermissions = async (req: Request, res: Response) => {
   try {
     const { roleId } = req.params;
-    const [permissions] = await pool.query(
-      'SELECT * FROM role_permissions WHERE role_group_id = ?',
+    const [permissions] = await pool.query<RolePermissionRow[]>(
+      `SELECT rp.*, m.id as moduloId, m.modulo_name 
+       FROM role_permissions rp
+       RIGHT JOIN modulos m ON rp.modulo_id = m.id AND rp.role_group_id = ?
+       ORDER BY m.modulo_name`,
       [roleId]
     );
-    res.json(permissions);
+
+    // Formatea los permisos para que coincidan con la estructura del frontend
+    const formattedPermissions = permissions.map(p => ({
+      moduloId: p.modulo_id || p.id,
+      view: Boolean(p.view),
+      can_create: Boolean(p.can_create),
+      edit: Boolean(p.edit),
+      can_delete: Boolean(p.can_delete)
+    }));
+
+    res.json(formattedPermissions);
   } catch (error) {
     logger.error('Error al obtener permisos:', { error });
     res.status(500).json({ message: 'Error al obtener permisos' });
@@ -144,6 +167,20 @@ export const updateRolePermissions = async (req: Request, res: Response) => {
 
     await connection.beginTransaction();
 
+    // Primero obtener los permisos existentes
+    const [existingPermissions] = await connection.query<RowDataPacket[]>(
+      'SELECT * FROM role_permissions WHERE role_group_id = ? AND modulo_id = ?',
+      [roleId, moduleId]
+    );
+
+    const currentPermissions = existingPermissions[0] || {
+      view: false,
+      can_create: false,
+      edit: false,
+      can_delete: false
+    };
+
+    // Actualizar solo el permiso específico manteniendo los demás
     await connection.query(
       `INSERT INTO role_permissions (role_group_id, modulo_id, view, can_create, edit, can_delete)
        VALUES (?, ?, ?, ?, ?, ?)
@@ -152,7 +189,14 @@ export const updateRolePermissions = async (req: Request, res: Response) => {
        can_create = VALUES(can_create),
        edit = VALUES(edit),
        can_delete = VALUES(can_delete)`,
-      [roleId, moduleId, permissions.view, permissions.can_create, permissions.edit, permissions.can_delete]
+      [
+        roleId,
+        moduleId,
+        permissions.view ?? currentPermissions.view,
+        permissions.can_create ?? currentPermissions.can_create,
+        permissions.edit ?? currentPermissions.edit,
+        permissions.can_delete ?? currentPermissions.can_delete
+      ]
     );
 
     await connection.commit();

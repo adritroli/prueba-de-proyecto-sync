@@ -44,7 +44,7 @@ export default function PaginaPruebasPage() {
       const data = await response.json()
       setRoles(data)
     } catch (error) {
-      toast.error("Error al cargar roles")
+      toast.error(`Error al cargar roles: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -54,18 +54,29 @@ export default function PaginaPruebasPage() {
       const data = await response.json()
       setModules(data)
     } catch (error) {
-      toast.error("Error al cargar módulos")
+      toast.error(`Error al cargar módulos: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   const fetchPermissions = async (roleId: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/roles/${roleId}/permissions`)
-      const data = await response.json()
-      setPermissions(data)
+      const response = await fetch(`http://localhost:5000/api/auth/roles/${roleId}/permissions`);
+      const data = await response.json();
+      console.log('Permisos recibidos:', data); // Para debugging
+      setPermissions(data);
     } catch (error) {
-      toast.error("Error al cargar permisos")
+      toast.error(`Error al cargar permisos: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  };
+
+  const getModulePermissions = (moduleId: number) => {
+    return permissions.find(p => p.moduloId === moduleId) || {
+      moduloId: moduleId,
+      view: false,
+      can_create: false,
+      edit: false,
+      can_delete: false
+    };
   }
 
   const handleRoleChange = (roleId: string) => {
@@ -86,8 +97,8 @@ export default function PaginaPruebasPage() {
       
       await fetchPermissions(selectedRole)
       toast.success("Permisos actualizados")
-    } catch (error) {
-      toast.error("Error al actualizar permisos")
+    } catch (error: unknown) {
+      toast.error(`Error al actualizar permisos: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -135,14 +146,14 @@ export default function PaginaPruebasPage() {
                     </thead>
                     <tbody>
                       {modules.map((module) => {
-                        const modulePermissions = permissions.find(p => p.moduloId === module.id)
+                        const modulePermissions = getModulePermissions(module.id);
                         return (
                           <tr key={module.id} className="border-t">
                             <td className="py-4">{module.modulo_name}</td>
                             <td className="text-center">
                               <Checkbox
-                                checked={modulePermissions?.view}
-                                className={getCheckboxClass(modulePermissions?.view)}
+                                checked={modulePermissions.view}
+                                className={getCheckboxClass(modulePermissions.view)}
                                 onCheckedChange={(checked) =>
                                   handlePermissionChange(module.id, "view", checked as boolean)
                                 }
@@ -150,8 +161,8 @@ export default function PaginaPruebasPage() {
                             </td>
                             <td className="text-center">
                               <Checkbox
-                                checked={modulePermissions?.can_create}
-                                className={getCheckboxClass(modulePermissions?.can_create)}
+                                checked={modulePermissions.can_create}
+                                className={getCheckboxClass(modulePermissions.can_create)}
                                 onCheckedChange={(checked) =>
                                   handlePermissionChange(module.id, "can_create", checked as boolean)
                                 }
@@ -159,8 +170,8 @@ export default function PaginaPruebasPage() {
                             </td>
                             <td className="text-center">
                               <Checkbox
-                                checked={modulePermissions?.edit}
-                                className={getCheckboxClass(modulePermissions?.edit)}
+                                checked={modulePermissions.edit}
+                                className={getCheckboxClass(modulePermissions.edit)}
                                 onCheckedChange={(checked) =>
                                   handlePermissionChange(module.id, "edit", checked as boolean)
                                 }
@@ -168,8 +179,8 @@ export default function PaginaPruebasPage() {
                             </td>
                             <td className="text-center">
                               <Checkbox
-                                checked={modulePermissions?.can_delete}
-                                className={getCheckboxClass(modulePermissions?.can_delete)}
+                                checked={modulePermissions.can_delete}
+                                className={getCheckboxClass(modulePermissions.can_delete)}
                                 onCheckedChange={(checked) =>
                                   handlePermissionChange(module.id, "can_delete", checked as boolean)
                                 }

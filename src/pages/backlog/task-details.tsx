@@ -608,7 +608,7 @@ export default function TaskDetailsPage() {
               </div>
 
               <div>
-                <Label>Creador</Label>
+                <Label>Informador</Label>
                 {editingField === "creator" ? (
                   <Select
                     value={String(task.created_by)}
