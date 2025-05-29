@@ -136,7 +136,37 @@ interface WidgetVisibility {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    urgentTasks: 0,
+    activeUsers: 0,
+    userStats: {
+      totalUsers: 0,
+      onlineUsers: 0,
+      activeTeams: 0,
+    },
+    activeSprint: null,
+    recentActivity: [],
+    projectSummary: [],
+    teamPerformance: [],
+    topPerformers: [],
+    avgStoryPoints: 0,
+    totalStoryPoints: 0,
+    activeAssignees: 0,
+    tasksByStatus: [],
+    tasksInSprints: 0,
+    tasksBacklog: 0,
+    inProgressTasks: 0,
+    sprintStats: {
+      totalSprints: 0,
+      completedSprints: 0,
+      activeSprints: 0,
+    },
+    activeSprintDetails: null,
+    activeSprintTasks: [],
+  });
   const [loading, setLoading] = useState(true);
   const [widgetVisibility, setWidgetVisibility] = useState<WidgetVisibility>(
     () => {
@@ -166,9 +196,22 @@ export default function DashboardPage() {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/dashboard/stats");
+      const response = await fetch(
+        "http://localhost:5000/api/dashboard/stats",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Error al obtener estadísticas");
+      }
       const data = await response.json();
-      setStats(data);
+      setStats((prev) => ({
+        ...prev,
+        ...data,
+      }));
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
     } finally {

@@ -41,10 +41,10 @@ app.use((req, _, next) => {
 });
 
 // Rutas API
-app.use('/api/tasks', taskRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/sprints', sprintRoutes);
+app.use('/api', taskRoutes);
+app.use('/api', userRoutes);
+app.use('/api', projectRoutes);
+app.use('/api', sprintRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/kanban', KanbanBoardRoutes);
 app.use('/api/linked-tasks', linkedTasksRoutes);
@@ -52,7 +52,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/documentation' ,documentationRoutes);
 app.use(express.static(path.join(__dirname, '../../public')));
 app.use('/api/upload', uploadRoutes);
-app.use('/api/teams', teamsRoutes);
+app.use('/api', teamsRoutes);
 app.use('/api/passwords', passwordRoutes);
 
 

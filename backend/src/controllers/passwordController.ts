@@ -145,25 +145,35 @@ export const toggleFavorite = async (req: Request, res: Response) => {
     }
   }
 
- export const  createFolder = async (req: Request, res: Response) =>{
-    const connection = await pool.getConnection();
-    try {
-      const userId = req.user?.id;
-      const { name } = req.body;
-      const id = uuidv4();
+ export const  createFolder = async (req: Request, res: Response):Promise<void> => {
+  const connection = await pool.getConnection();
+  try {
+    const userId = req.user?.id;
+    const { name } = req.body;
 
-      await connection.query(
-        'INSERT INTO password_folders (id, user_id, name) VALUES (?, ?, ?)',
-        [id, userId, name]
-      );
-
-      res.status(201).json({ id, message: 'Folder created successfully' });
-    } catch (error) {
-      res.status(500).json({ error: 'Error creating folder' });
-    } finally {
-      connection.release();
+    if (!name || !userId) {
+       res.status(400).json({ error: 'Nombre y usuario son requeridos' });
     }
+
+    const id = uuidv4();
+    const result = await connection.query(
+      'INSERT INTO password_folders (id, user_id, name) VALUES (?, ?, ?)',
+      [id, userId, name]
+    );
+
+    res.status(201).json({ 
+      id, 
+      name,
+      message: 'Folder created successfully' 
+    });
+
+  } catch (error) {
+    console.error('Error creating folder:', error);
+    res.status(500).json({ error: 'Error creating folder' });
+  } finally {
+    connection.release();
   }
+}
 
   export const updateFolder = async (req: Request, res: Response) =>{
     const connection = await pool.getConnection();

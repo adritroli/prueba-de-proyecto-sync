@@ -15,7 +15,7 @@ router.post('/team', createTeam);
 router.put('/team/:id', updateTeam);
 router.delete('/team/:id', deleteTeam);
 
-router.get('/teams/:id/members', getTeamMembers);
-router.put('/teams/:id/members', updateTeamMembers);
+router.get('/team/:id/members', getTeamMembers);
+router.put('/team/:id/members', updateTeamMembers);
 
 export default router;

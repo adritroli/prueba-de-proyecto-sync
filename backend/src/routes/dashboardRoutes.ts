@@ -1,8 +1,10 @@
-import express from 'express';
+import { Router } from 'express';
+import { authenticateToken } from '../middleware/auth';
 import { getDashboardStats } from '../controllers/dashboardController';
 
-const router = express.Router();
+const router = Router();
 
-router.get('/dashboard/stats', getDashboardStats);
+// Proteger la ruta con autenticación
+router.get('/stats', authenticateToken as any, getDashboardStats);
 
 export default router;

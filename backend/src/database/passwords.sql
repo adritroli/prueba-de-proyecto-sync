@@ -1,12 +1,12 @@
-CREATE TABLE password_folders (
+CREATE TABLE IF NOT EXISTS password_folders (
     id VARCHAR(36) PRIMARY KEY,
-    user_id INT NOT NULL,
+    user_id INT NOT NULL, -- Cambiado de VARCHAR(36) a INT para coincidir con users.id
     name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
-CREATE TABLE password_entries (
+CREATE TABLE IF NOT EXISTS password_entries (
     id VARCHAR(36) PRIMARY KEY,
     user_id INT NOT NULL,
     folder_id VARCHAR(36),

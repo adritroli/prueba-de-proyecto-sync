@@ -8,6 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -56,7 +63,8 @@ export default function PaginaPruebas() {
     password: "",
     url: "",
     notes: "",
-    category: "",
+    folder_id: "",
+    favorite: false,
   });
   const [selectedFolder, setSelectedFolder] = useState<string>("all");
   const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
@@ -167,7 +175,8 @@ export default function PaginaPruebas() {
         password: "",
         url: "",
         notes: "",
-        category: "",
+        folder_id: "",
+        favorite: false,
       });
 
       fetchPasswords();
@@ -192,14 +201,20 @@ export default function PaginaPruebas() {
         }
       );
 
-      if (!response.ok) throw new Error("Error al crear la carpeta");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al crear la carpeta");
+      }
 
-      fetchFolders();
+      const data = await response.json();
+      setFolders((prev) => [...prev, { id: data.id, name: data.name }]);
       setNewFolderInput(false);
       toast.success("Carpeta creada exitosamente");
     } catch (error) {
       console.error("Error creating folder:", error);
-      toast.error("Error al crear la carpeta");
+      toast.error(
+        error instanceof Error ? error.message : "Error al crear la carpeta"
+      );
     }
   };
 
@@ -464,6 +479,46 @@ export default function PaginaPruebas() {
                       setNewEntry({ ...newEntry, url: e.target.value })
                     }
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="folder">Carpeta</Label>
+                  <Select
+                    value={newEntry.folder_id}
+                    onValueChange={(value) =>
+                      setNewEntry({ ...newEntry, folder_id: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar carpeta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin carpeta</SelectItem>
+                      {folders.map((folder) => (
+                        <SelectItem key={folder.id} value={folder.id}>
+                          {folder.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="block">Favorito</Label>
+                  <Button
+                    variant="outline"
+                    className={`w-full justify-start ${
+                      newEntry.favorite ? "bg-primary/10" : ""
+                    }`}
+                    onClick={() =>
+                      setNewEntry({ ...newEntry, favorite: !newEntry.favorite })
+                    }
+                  >
+                    <Star
+                      className={`h-4 w-4 mr-2 ${
+                        newEntry.favorite ? "fill-yellow-400" : ""
+                      }`}
+                    />
+                    {newEntry.favorite ? "Favorito" : "Marcar como favorito"}
+                  </Button>
                 </div>
               </div>
               <Button onClick={addPassword} className="w-full">

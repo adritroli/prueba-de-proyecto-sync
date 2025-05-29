@@ -14,17 +14,18 @@ declare global {
   }
 }
 
-export const authenticateToken = (
+export const authenticateToken = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+      res.status(401).json({ error: 'No token provided' });
+      return;
     }
 
     const decoded = jwt.verify(
@@ -35,6 +36,7 @@ export const authenticateToken = (
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(403).json({ error: 'Invalid token' });
+    res.status(403).json({ error: 'Invalid token' });
+    return;
   }
 };

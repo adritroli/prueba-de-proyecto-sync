@@ -22,9 +22,9 @@ router.delete('/:id', authenticateToken as any, deletePassword);
 router.put('/:id/favorite', authenticateToken as any, toggleFavorite);
 
 // Rutas de carpetas
-router.get('/folders', getFolders);
-router.post('/folders', createFolder);
-router.put('/folders/:id', updateFolder);
-router.delete('/folders/:id', deleteFolder);
+router.get('/folders', authenticateToken as any, getFolders);
+router.post('/folders', authenticateToken as any, createFolder);
+router.put('/folders/:id', authenticateToken as any, updateFolder);
+router.delete('/folders/:id', authenticateToken as any, deleteFolder);
 
 export default router;
