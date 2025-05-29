@@ -40,6 +40,7 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { ArrowUpDown } from "lucide-react";
+import { TaskDetailModal } from "@/components/tasks/task-detail-modal";
 
 export default function SearchTaskPage() {
   // Inicializar todos los estados con valores por defecto
@@ -77,6 +78,9 @@ export default function SearchTaskPage() {
     field: string;
     direction: "asc" | "desc";
   }>({ field: "", direction: "asc" });
+
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const getAvatarUrl = (userId: number) => {
     const user = users.find((u) => u.id === userId);
@@ -284,6 +288,11 @@ export default function SearchTaskPage() {
       direction:
         current.field === field && current.direction === "asc" ? "desc" : "asc",
     }));
+  };
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setDetailModalOpen(true);
   };
 
   // Asegurarse de que se carguen los datos necesarios al inicio
@@ -709,10 +718,18 @@ export default function SearchTaskPage() {
               ) : (
                 sortTasks(tasks).map((task) => (
                   <TableRow key={task.id}>
-                    <TableCell className="font-medium">
+                    <TableCell
+                      className="font-medium cursor-pointer hover:text-primary"
+                      onClick={() => handleTaskClick(task)}
+                    >
                       {task.project_code}-{task.task_number}
                     </TableCell>
-                    <TableCell>{task.title}</TableCell>
+                    <TableCell
+                      className="cursor-pointer hover:text-primary"
+                      onClick={() => handleTaskClick(task)}
+                    >
+                      {task.title}
+                    </TableCell>
                     <TableCell>
                       <Badge style={{ backgroundColor: task.status_color }}>
                         {task.status_name}
@@ -879,27 +896,38 @@ export default function SearchTaskPage() {
           </Table>
         </div>
 
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-          >
-            <LiaAngleLeftSolid />
-          </Button>
-          <div className="text-sm">
-            Página {page} de {totalPages}
+        <div className="flex items-center justify-between py-4">
+          <div className="text-sm text-muted-foreground">
+            Mostrando {tasks.length} tareas de {totalPages * 20} en total
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPage(page + 1)}
-            disabled={page === totalPages}
-          >
-            <LiaAngleRightSolid />
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+            >
+              <LiaAngleLeftSolid />
+            </Button>
+            <div className="text-sm">
+              Página {page} de {totalPages}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPage(page + 1)}
+              disabled={page === totalPages}
+            >
+              <LiaAngleRightSolid />
+            </Button>
+          </div>
         </div>
+
+        <TaskDetailModal
+          task={selectedTask}
+          open={detailModalOpen}
+          onOpenChange={setDetailModalOpen}
+        />
       </div>
     </DefaultLayout>
   );
