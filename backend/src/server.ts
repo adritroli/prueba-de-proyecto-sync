@@ -16,44 +16,47 @@ import sprintRoutes from './routes/sprintRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import path from 'path';
 import { errorMiddleware } from './middleware/performance';
+import passwordRoutes from './routes/passwordRoutes';
+
 
 const app = express();
 
-// Middleware de seguridad
-app.use(cors({
-  origin: 'http://localhost:5173', // Puerto por defecto de Vite
-  credentials: true
-}));
+// Configuración básica
+app.use(express.json());
 app.use(helmet());
 
-// Rate limiting
-import rateLimit from 'express-rate-limit';
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100 // límite de 100 peticiones por ventana
-});
-app.use('/api/auth', limiter);
+// Configuración CORS - eliminar el duplicado
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// Middleware de logging
+// Logging
 app.use(requestLogger);
+app.use((req, _, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
 
-app.use(express.json());
-
-// Rutas
-app.use('/api', userRoutes);
-app.use('/api', teamsRoutes);
-app.use('/api', projectRoutes);
-app.use('/api', taskRoutes);
-app.use('/api', linkedTasksRoutes);  // Agregar nuevas rutas
+// Rutas API
+app.use('/api/tasks', taskRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/sprints', sprintRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api', KanbanBoardRoutes);
-app.use('/api', dashboardRoutes);
-app.use('/api/documentation', documentationRoutes);
-app.use('/api', sprintRoutes);
+app.use('/api/kanban', KanbanBoardRoutes);
+app.use('/api/linked-tasks', linkedTasksRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/documentation' ,documentationRoutes);
 app.use(express.static(path.join(__dirname, '../../public')));
 app.use('/api/upload', uploadRoutes);
+app.use('/api/teams', teamsRoutes);
+app.use('/api/passwords', passwordRoutes);
 
-// Manejo de errores global
+
+// Error handling debe ser el último middleware
 app.use(errorMiddleware);
 
 const PORT = process.env.PORT || 5000;
