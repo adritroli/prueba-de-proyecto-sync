@@ -43,3 +43,18 @@ export interface Sprint {
   goal: string;
 }
 
+export interface FilterConfig {
+  dateRange?: {
+    from: Date | undefined;
+    to: Date | undefined;
+  };
+  priority?: string[];
+  status?: string[];
+  assignee?: number[];
+  storyPoints?: {
+    min?: number;
+    max?: number;
+  };
+  tags?: string[];
+}
+

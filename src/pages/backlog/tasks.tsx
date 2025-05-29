@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AdvancedFilter } from "@/components/filters/advanced-filter";
 
 interface PaginatedResponse {
   data: Task[];
@@ -58,17 +59,42 @@ export default function TasksPage() {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
   const [users, setUsers] = useState<any[]>([]);
+  const [filters, setFilters] = useState<FilterConfig>({});
   const activeSprint = sprints.find((sprint) => sprint.status === "active");
 
   const fetchTasksAndSprints = async () => {
     setLoading(true);
     try {
-      console.log("Fetching tasks and sprints...");
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "10",
         ...(search && { search }),
       });
+
+      // Agregar filtros avanzados a los parámetros
+      if (filters.dateRange?.from) {
+        params.append("dateFrom", filters.dateRange.from.toISOString());
+      }
+      if (filters.dateRange?.to) {
+        params.append("dateTo", filters.dateRange.to.toISOString());
+      }
+      if (filters.priority?.length) {
+        filters.priority.forEach((p) => params.append("priority", p));
+      }
+      if (filters.status?.length) {
+        filters.status.forEach((s) => params.append("status", s));
+      }
+      if (filters.assignee?.length) {
+        filters.assignee.forEach((a) =>
+          params.append("assignee", a.toString())
+        );
+      }
+      if (filters.storyPoints?.min) {
+        params.append("storyPointsMin", filters.storyPoints.min.toString());
+      }
+      if (filters.storyPoints?.max) {
+        params.append("storyPointsMax", filters.storyPoints.max.toString());
+      }
 
       const [tasksRes, sprintsRes] = await Promise.all([
         fetch(`http://localhost:5000/api/task?${params}`),
@@ -98,7 +124,22 @@ export default function TasksPage() {
 
   useEffect(() => {
     fetchTasksAndSprints();
-  }, [page, search]);
+  }, [page, search, filters]);
+
+  // Añadir efecto para cargar usuarios
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/users");
+        const data = await response.json();
+        setUsers(data.data || []);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const handleCreateSprint = async (sprintData: any) => {
     try {
@@ -195,17 +236,44 @@ export default function TasksPage() {
 
   const handleUpdateTask = async (taskId: number, updates: Partial<Task>) => {
     try {
+      // Encontrar la tarea actual en el estado
+      const currentTask = tasks.find((t) => t.id === taskId);
+      if (!currentTask) {
+        throw new Error("Tarea no encontrada");
+      }
+
+      // Log para debugging
+      console.log("Updating task:", taskId, "with data:", updates);
+
       const response = await fetch(`http://localhost:5000/api/task/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({
+          // Mantener los datos existentes y combinar con las actualizaciones
+          title: currentTask.title,
+          description: currentTask.description,
+          priority: updates.priority || currentTask.priority,
+          story_points: currentTask.story_points,
+          assignee: updates.assignee ?? currentTask.assignee,
+          sprint_id: updates.sprint_id ?? currentTask.sprint_id,
+          status_id: updates.status_id || currentTask.status_id,
+          project_id: currentTask.project_id,
+          tags: currentTask.tags || [],
+        }),
       });
 
-      if (!response.ok) throw new Error();
-      fetchTasksAndSprints();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error al actualizar la tarea");
+      }
+
+      await fetchTasksAndSprints();
+      toast.success("Tarea actualizada correctamente");
     } catch (error) {
       console.error("Error updating task:", error);
-      toast.error("Error al actualizar la tarea");
+      toast.error(
+        error instanceof Error ? error.message : "Error al actualizar la tarea"
+      );
     }
   };
 
@@ -254,6 +322,20 @@ export default function TasksPage() {
                 }}
               />
             </div>
+            <AdvancedFilter
+              onFilterChange={(newFilters) => {
+                setFilters(newFilters);
+                setPage(1);
+              }}
+              statuses={[
+                { id: "backlog", name: "Backlog" },
+                { id: "todo", name: "To Do" },
+                { id: "in_progress", name: "En Progreso" },
+                { id: "review", name: "En Review" },
+                { id: "done", name: "Completado" },
+              ]}
+              users={users}
+            />
           </div>
 
           <div className="flex justify-between mb-4">
@@ -401,8 +483,8 @@ export default function TasksPage() {
                             })
                           }
                         >
-                          <SelectTrigger className="w-[150px]">
-                            <SelectValue placeholder="Sin asignar">
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue>
                               {task.assignee ? (
                                 <div className="flex items-center gap-2">
                                   <Avatar className="h-6 w-6">
@@ -410,18 +492,32 @@ export default function TasksPage() {
                                       src={`/avatars/${task.assignee}.png`}
                                     />
                                     <AvatarFallback>
-                                      {task.assignee_name?.[0]}
+                                      {task.assignee_name?.[0] || "U"}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <span>{task.assignee_name}</span>
+                                  <span className="truncate">
+                                    {task.assignee_name}
+                                  </span>
                                 </div>
                               ) : (
-                                "Sin asignar"
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarFallback>?</AvatarFallback>
+                                  </Avatar>
+                                  <span>Sin asignar</span>
+                                </div>
                               )}
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="_none">Sin asignar</SelectItem>
+                            <SelectItem value="_none">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarFallback>?</AvatarFallback>
+                                </Avatar>
+                                <span>Sin asignar</span>
+                              </div>
+                            </SelectItem>
                             {users.map((user) => (
                               <SelectItem
                                 key={user.id}
@@ -429,12 +525,16 @@ export default function TasksPage() {
                               >
                                 <div className="flex items-center gap-2">
                                   <Avatar className="h-6 w-6">
-                                    <AvatarImage src={user.avatar} />
+                                    <AvatarImage
+                                      src={
+                                        user.avatar || `/avatars/${user.id}.png`
+                                      }
+                                    />
                                     <AvatarFallback>
                                       {user.name[0]}
                                     </AvatarFallback>
                                   </Avatar>
-                                  {user.name}
+                                  <span className="truncate">{user.name}</span>
                                 </div>
                               </SelectItem>
                             ))}

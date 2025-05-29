@@ -16,7 +16,7 @@ interface TaskRow extends RowDataPacket {
 
 export const getTasks = async (req: Request, res: Response) => {
   try {
-    const [rows] = await pool.query<TaskRow[]>(`
+    let query = `
       SELECT 
         t.*,
         u.name as assignee_name,
@@ -31,26 +31,77 @@ export const getTasks = async (req: Request, res: Response) => {
       LEFT JOIN task_status ts ON t.status_id = ts.id
       LEFT JOIN sprints s ON t.sprint_id = s.id
       LEFT JOIN projects p ON t.project_id = p.id
-      ORDER BY t.created_at DESC
-    `);
+      WHERE 1=1
+    `;
+
+    const params: any[] = [];
+
+    // Aplicar filtros si existen
+    if (req.query.dateFrom && req.query.dateTo) {
+      query += ` AND t.created_at BETWEEN ? AND ?`;
+      params.push(req.query.dateFrom, req.query.dateTo);
+    }
+
+    if (req.query.priority) {
+      const priorities = Array.isArray(req.query.priority) 
+        ? req.query.priority 
+        : [req.query.priority];
+      query += ` AND t.priority IN (?)`;
+      params.push(priorities);
+    }
+
+    if (req.query.status) {
+      const statuses = Array.isArray(req.query.status) 
+        ? req.query.status 
+        : [req.query.status];
+      query += ` AND t.status_id IN (?)`;
+      params.push(statuses);
+    }
+
+    if (req.query.assignee) {
+      const assignees = Array.isArray(req.query.assignee) 
+        ? req.query.assignee 
+        : [req.query.assignee];
+      query += ` AND t.assignee IN (?)`;
+      params.push(assignees);
+    }
+
+    if (req.query.storyPointsMin) {
+      query += ` AND t.story_points >= ?`;
+      params.push(req.query.storyPointsMin);
+    }
+
+    if (req.query.storyPointsMax) {
+      query += ` AND t.story_points <= ?`;
+      params.push(req.query.storyPointsMax);
+    }
+
+    if (req.query.tags) {
+      query += ` AND JSON_CONTAINS(t.tags, ?)`;
+      params.push(JSON.stringify(req.query.tags));
+    }
+
+    query += ` ORDER BY t.created_at DESC`;
+
+    const [rows] = await pool.query(query, params);
+    const tasks = rows as RowDataPacket[];
 
     res.json({
-      data: rows,
+      data: tasks,
       pagination: {
-        total: rows.length,
-        page: 1,
-        limit: rows.length,
-        totalPages: 1
+        total: tasks.length,
+        page: parseInt(req.query.page as string) || 1,
+        limit: parseInt(req.query.limit as string) || tasks.length
       }
     });
   } catch (error) {
+    console.error("Error fetching tasks:", error);
     res.status(500).json({ 
       data: [], 
       pagination: {
         total: 0,
         page: 1,
-        limit: 0,
-        totalPages: 0
+        limit: 0
       }
     });
   }
@@ -340,25 +391,67 @@ export const createTask = async (req: Request, res: Response) => {
 };
 
 export const updateTask = async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const connection = await pool.getConnection();
   try {
-    const { title, description, priority, story_points, assignee, sprint_id, tags } = req.body;
-    
-    // Convertir "_none" a NULL para la base de datos
-    const assigneeValue = assignee === "_none" ? null : assignee;
-    const sprintValue = sprint_id === "_none" ? null : sprint_id;
+    const { id } = req.params;
+    const updates = req.body;
 
-    await pool.query(
+    // Log para debugging
+    console.log('Updating task:', id, 'with data:', updates);
+
+    // Validar que los campos requeridos estén presentes
+    if (!updates.title || !updates.description) {
+      throw new Error('Faltan campos requeridos');
+    }
+
+    await connection.beginTransaction();
+
+    // Actualizar la tarea
+    await connection.query(
       `UPDATE tasks 
-       SET title = ?, description = ?, priority = ?, 
-           story_points = ?, assignee = ?, sprint_id = ?, 
-           tags = ?, updated_at = NOW()
+       SET title = ?, 
+           description = ?, 
+           priority = ?,
+           story_points = ?,
+           assignee = ?,
+           sprint_id = ?,
+           status_id = ?,
+           project_id = ?,
+           tags = ?,
+           updated_at = NOW()
        WHERE id = ?`,
-      [title, description, priority, story_points, assigneeValue, sprintValue, JSON.stringify(tags), id]
+      [
+        updates.title,
+        updates.description,
+        updates.priority,
+        updates.story_points,
+        updates.assignee,
+        updates.sprint_id,
+        updates.status_id,
+        updates.project_id,
+        JSON.stringify(updates.tags),
+        id
+      ]
     );
-    res.json({ message: 'Tarea actualizada' });
+
+    await connection.commit();
+    
+    // Obtener la tarea actualizada
+    const [updatedTask] = await connection.query(
+      'SELECT * FROM tasks WHERE id = ?',
+      [id]
+    );
+
+    res.json(updatedTask[0]);
   } catch (error) {
-    res.status(500).json({ message: 'Error al actualizar tarea' });
+    await connection.rollback();
+    console.error('Error updating task:', error);
+    res.status(500).json({ 
+      message: error instanceof Error ? error.message : 'Error interno del servidor',
+      error: error
+    });
+  } finally {
+    connection.release();
   }
 };
 
