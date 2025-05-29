@@ -1,4 +1,8 @@
-import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Navigate,
+} from "react-router-dom";
 import LoginPage from "./pages/login/login";
 import DashboardPage from "./pages/dashboard/dashboard";
 import UsersPage from "./pages/users/users";
@@ -16,11 +20,13 @@ import EditDocumentationPage from "./pages/documentation/edit/[id]";
 import { ErrorBoundary } from "@/components/errorBoundary";
 import NewClaimPage from "./pages/claims/new-claim";
 import ReclamosPage from "./pages/claims/reclamos";
-import { ProtectedRoute } from '@/components/protected-route';
+import { ProtectedRoute } from "@/components/protected-route";
 import AccountPage from "./pages/profile/account";
 import PortalClaimPage from "./pages/claims/portalClaim";
 import CalendarPage from "./pages/calendar/calendar";
 import PaginaPruebasPage from "./pages/pruebas/paginaPruebas";
+import RolesPermisosPage from "./pages/roles/roles";
+import SearchTaskPage from "./pages/backlog/searchTasks";
 
 const router = createBrowserRouter([
   {
@@ -44,12 +50,28 @@ const router = createBrowserRouter([
     ),
   },
   {
+    path: "/searchTasks",
+    element: (
+      <ProtectedRoute>
+        <SearchTaskPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/roles",
+    element: (
+      <ProtectedRoute>
+        <RolesPermisosPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: "/portalClaim",
     element: (
       <ProtectedRoute>
         <PortalClaimPage />
       </ProtectedRoute>
-    ),  
+    ),
   },
   {
     path: "/calendar",
@@ -57,7 +79,7 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <CalendarPage />
       </ProtectedRoute>
-    ),  
+    ),
   },
   {
     path: "/users",

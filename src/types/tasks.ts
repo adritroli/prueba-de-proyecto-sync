@@ -31,6 +31,8 @@ export interface Task {
   sprint_name?: string; // Added sprint_name property
   project_badge_color?: string;
   type?: string; // Added type property
+    sprint_status?: string;
+
 
 }
 

@@ -6,6 +6,8 @@ import {
   GalleryVerticalEnd,
   LucideIcon,
 } from "lucide-react";
+import { FaUserShield } from "react-icons/fa6";
+
 import { ImHome } from "react-icons/im";
 import { FaUsersCog } from "react-icons/fa";
 import { MdMenuBook } from "react-icons/md";
@@ -83,11 +85,15 @@ const data = {
       ],
     },
     {
-      title: "Backlog",
+      title: "Backlog & Sprints",
       url: "#",
       icon: HiMiniInboxStack,
       isActive: true,
       items: [
+        {
+          title: "Search Tasks",
+          url: "/searchTasks",
+        },
         {
           title: "Tasks Pending",
           url: "/tasks",
@@ -140,7 +146,7 @@ const data = {
         {
           title: "Crear documento",
           url: "/documentation/create",
-        }
+        },
       ],
     },
     {
@@ -158,6 +164,17 @@ const data = {
         },
       ],
     },
+    {
+      title: "Roles & Permissions",
+      url: "#",
+      icon: FaUserShield,
+      items: [
+        {
+          title: "Roles Management",
+          url: "/roles",
+        },
+      ],
+    },
   ],
   projects: [],
 };
@@ -169,7 +186,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     name: userData?.username || "Usuario",
     email: userData?.email || "email@ejemplo.com",
     avatar: userData?.avatar || "/avatars/default.png",
-    isLoading: !userData
+    isLoading: !userData,
   };
 
   useEffect(() => {
@@ -181,7 +198,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           id: user.id,
           username: user.username || user.name,
           email: user.email,
-          avatar: user.avatar || `/avatars/${user.id}.png`
+          avatar: user.avatar || `/avatars/${user.id}.png`,
         });
       } catch (error) {
         console.error("Error parsing user data:", error);

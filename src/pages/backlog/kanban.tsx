@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search } from "lucide-react";
-import "@/styles/kanban.css"
+import "@/styles/kanban.css";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Popover,
@@ -60,15 +60,33 @@ export default function KanbanPage() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      console.log("Fetching tasks...");
-      const response = await fetch("http://localhost:5000/api/task");
+      const sprintResponse = await fetch(
+        "http://localhost:5000/api/sprints/active"
+      );
+      const sprintData = await sprintResponse.json();
+
+      if (!sprintData.sprint) {
+        setTasks([]);
+        toast.error("No hay sprint activo");
+        return;
+      }
+
+      const params = new URLSearchParams({
+        sprint_id: sprintData.sprint.id.toString(),
+        ...(searchTerm && { search: searchTerm }),
+        ...(selectedUser !== "all" && { assignee: selectedUser }),
+        ...(selectedProject !== "all" && { project_id: selectedProject }),
+      });
+
+      const response = await fetch(`http://localhost:5000/api/task?${params}`);
       const data = await response.json();
-      console.log("Tasks received:", data);
+
+      console.log("Tareas del sprint activo:", data);
       setTasks(data.data || []);
     } catch (error) {
       console.error("Error fetching tasks:", error);
-      toast.error("Error al cargar las tareas");
-      setTasks([]); // Asegurar que siempre sea un array
+      toast.error("Error al cargar las tareas del sprint");
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -114,12 +132,16 @@ export default function KanbanPage() {
     }
   };
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesProject = selectedProject === "all" || task.project_id?.toString() === selectedProject;
-    const matchesUser = selectedUser === "all" || task.assignee?.toString() === selectedUser;
-    
+  const filteredTasks = tasks.filter((task) => {
+    const matchesSearch =
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesProject =
+      selectedProject === "all" ||
+      task.project_id?.toString() === selectedProject;
+    const matchesUser =
+      selectedUser === "all" || task.assignee?.toString() === selectedUser;
+
     return matchesSearch && matchesProject && matchesUser;
   });
 
@@ -218,6 +240,25 @@ export default function KanbanPage() {
     );
   }
 
+  if (!activeSprint) {
+    return (
+      <DefaultLayout>
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)]">
+          <h2 className="text-xl font-bold mb-4">No hay sprint activo</h2>
+          <p className="text-muted-foreground mb-4">
+            Activa un sprint para ver sus tareas en el tablero Kanban
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => (window.location.href = "/backlog")}
+          >
+            Ir al Backlog
+          </Button>
+        </div>
+      </DefaultLayout>
+    );
+  }
+
   const displayUsers = users.slice(0, 4);
   const remainingUsers = users.slice(4);
 
@@ -226,14 +267,12 @@ export default function KanbanPage() {
       <div className="flex justify-between items-center mb-3">
         <div>
           <h1 className="text-2xl font-bold">Board Tasks</h1>
-          {activeSprint && (
           <div className="text-sm text-muted-foreground">
-            Sprint Activo: {activeSprint.name}
+            Sprint Activo: {activeSprint.name} (
+            {new Date(activeSprint.start_date).toLocaleDateString()} -{" "}
+            {new Date(activeSprint.end_date).toLocaleDateString()})
           </div>
-        )}
         </div>
-     
-       
       </div>
 
       <div>
@@ -246,65 +285,75 @@ export default function KanbanPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-          
 
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-2">
-              {displayUsers.map((user) => (
-                <Avatar
-                  key={user.id}
-                  className={`h-8 w-8 border-2 border-background cursor-pointer hover:scale-105 transition-transform ${
-                    selectedUser === user.id.toString() ? 'ring-2 ring-primary' : ''
-                  }`}
-                  onClick={() => setSelectedUser(
-                    selectedUser === user.id.toString() ? "all" : user.id.toString()
-                  )}
-                >
-                  <AvatarImage src={user.avatar || `/avatars/${user.id}.png`} />
-                  <AvatarFallback>{user.name[0]}</AvatarFallback>
-                </Avatar>
-              ))}
-              {remainingUsers.length > 0 && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Avatar
-                      className="h-8 w-8 border-2 border-background cursor-pointer hover:scale-105 transition-transform"
-                    >
-                      <AvatarFallback>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-48 p-2">
-                    <div className="flex flex-col gap-1">
-                      {remainingUsers.map((user) => (
-                        <div
-                          key={user.id}
-                          className={`flex items-center gap-2 p-1 rounded hover:bg-muted cursor-pointer ${
-                            selectedUser === user.id.toString() ? 'bg-muted' : ''
-                          }`}
-                          onClick={() => setSelectedUser(
-                            selectedUser === user.id.toString() ? "all" : user.id.toString()
-                          )}
-                        >
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={user.avatar || `/avatars/${user.id}.png`} />
-                            <AvatarFallback>{user.name[0]}</AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">{user.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2">
+                {displayUsers.map((user) => (
+                  <Avatar
+                    key={user.id}
+                    className={`h-8 w-8 border-2 border-background cursor-pointer hover:scale-105 transition-transform ${
+                      selectedUser === user.id.toString()
+                        ? "ring-2 ring-primary"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      setSelectedUser(
+                        selectedUser === user.id.toString()
+                          ? "all"
+                          : user.id.toString()
+                      )
+                    }
+                  >
+                    <AvatarImage
+                      src={user.avatar || `/avatars/${user.id}.png`}
+                    />
+                    <AvatarFallback>{user.name[0]}</AvatarFallback>
+                  </Avatar>
+                ))}
+                {remainingUsers.length > 0 && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Avatar className="h-8 w-8 border-2 border-background cursor-pointer hover:scale-105 transition-transform">
+                        <AvatarFallback>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-2">
+                      <div className="flex flex-col gap-1">
+                        {remainingUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            className={`flex items-center gap-2 p-1 rounded hover:bg-muted cursor-pointer ${
+                              selectedUser === user.id.toString()
+                                ? "bg-muted"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              setSelectedUser(
+                                selectedUser === user.id.toString()
+                                  ? "all"
+                                  : user.id.toString()
+                              )
+                            }
+                          >
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage
+                                src={user.avatar || `/avatars/${user.id}.png`}
+                              />
+                              <AvatarFallback>{user.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{user.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
             </div>
           </div>
-          </div>
-          <Select
-            value={selectedProject}
-            onValueChange={setSelectedProject}
-          >
+          <Select value={selectedProject} onValueChange={setSelectedProject}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Filtrar por proyecto" />
             </SelectTrigger>
@@ -322,11 +371,17 @@ export default function KanbanPage() {
 
       <div className="grid grid-cols-5 gap-3 h-[calc(100vh-200px)]">
         {columns.map((column) => (
-          <div key={column.id} className="flex flex-col overflow-y-auto h-full scrollbar-thin">
+          <div
+            key={column.id}
+            className="flex flex-col overflow-y-auto h-full scrollbar-thin"
+          >
             <div className="bg-muted p-2 rounded-t-md flex justify-between items-center">
               <h3 className="font-medium">{column.title}</h3>
               <span className="text-xs text-muted-foreground">
-                {filteredTasks.filter(task => task.status_name === column.id).length}
+                {
+                  filteredTasks.filter((task) => task.status_name === column.id)
+                    .length
+                }
               </span>
             </div>
             <div
@@ -336,7 +391,7 @@ export default function KanbanPage() {
               className="flex-1 overflow-auto bg-muted/50 p-2 rounded-b-md transition-colors prueba-scrollbar"
             >
               {filteredTasks
-                .filter(task => task.status_name === column.id)
+                .filter((task) => task.status_name === column.id)
                 .map((task) => (
                   <div
                     key={task.id}

@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AdvancedFilter } from "@/components/filters/advanced-filter";
+import { FiX } from "react-icons/fi";
 
 interface PaginatedResponse {
   data: Task[];
@@ -59,8 +60,28 @@ export default function TasksPage() {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
   const [users, setUsers] = useState<any[]>([]);
+  const [statuses, setStatuses] = useState<
+    { id: number; name: string; color: string }[]
+  >([]);
+  // Define the FilterConfig type if not already defined or imported
+  type FilterConfig = {
+    dateRange?: { from?: Date; to?: Date };
+    priority?: string[];
+    status?: string[];
+    assignee?: number[];
+    storyPoints?: { min?: number; max?: number };
+  };
+
   const [filters, setFilters] = useState<FilterConfig>({});
+  const [editingTask, setEditingTask] = useState<{
+    id: number | null;
+    field: "status" | "priority" | "assignee" | null;
+  }>({ id: null, field: null });
   const activeSprint = sprints.find((sprint) => sprint.status === "active");
+  const getAvatarUrl = (userId: number) => {
+    const user = users.find((u) => u.id === userId);
+    return user?.avatar || `/avatars/${userId}.png`;
+  };
 
   const fetchTasksAndSprints = async () => {
     setLoading(true);
@@ -85,7 +106,7 @@ export default function TasksPage() {
         filters.status.forEach((s) => params.append("status", s));
       }
       if (filters.assignee?.length) {
-        filters.assignee.forEach((a) =>
+        filters.assignee.forEach((a: number) =>
           params.append("assignee", a.toString())
         );
       }
@@ -141,20 +162,21 @@ export default function TasksPage() {
     fetchUsers();
   }, []);
 
-  const handleCreateSprint = async (sprintData: any) => {
+  const fetchStatuses = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/sprints", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sprintData),
-      });
-
-      if (response.ok) {
-        fetchTasksAndSprints();
-      }
+      const response = await fetch("http://localhost:5000/api/task-status");
+      const data = await response.json();
+      setStatuses(data);
     } catch (error) {
-      console.error("Error creating sprint:", error);
+      console.error("Error fetching task statuses:", error);
+      setStatuses([]);
     }
+  };
+
+  const handleCreateSprint = async (sprintData: any) => {
+    // Actualizar la lista de sprints
+    await fetchTasksAndSprints();
+    toast.success("Sprint creado exitosamente");
   };
 
   const handleActivateSprint = async (sprintId: number) => {
@@ -234,46 +256,61 @@ export default function TasksPage() {
     }
   };
 
-  const handleUpdateTask = async (taskId: number, updates: Partial<Task>) => {
+  const handleUpdateTask = async (
+    taskId: number,
+    field: string,
+    value: any
+  ) => {
     try {
-      // Encontrar la tarea actual en el estado
       const currentTask = tasks.find((t) => t.id === taskId);
       if (!currentTask) {
         throw new Error("Tarea no encontrada");
       }
 
-      // Log para debugging
-      console.log("Updating task:", taskId, "with data:", updates);
+      const updateData = {
+        title: currentTask.title,
+        description: currentTask.description,
+        priority: currentTask.priority,
+        story_points: currentTask.story_points,
+        assignee: currentTask.assignee,
+        sprint_id: currentTask.sprint_id,
+        status_id: currentTask.status_id,
+        project_id: currentTask.project_id,
+        tags: currentTask.tags || [],
+      };
+
+      // Actualizar el campo específico
+      switch (field) {
+        case "status_id":
+          updateData.status_id = value;
+          break;
+        case "priority":
+          updateData.priority = value;
+          break;
+        case "assignee":
+          updateData.assignee = value;
+          break;
+        case "sprint_id":
+          updateData.sprint_id = value;
+          break;
+      }
 
       const response = await fetch(`http://localhost:5000/api/task/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          // Mantener los datos existentes y combinar con las actualizaciones
-          title: currentTask.title,
-          description: currentTask.description,
-          priority: updates.priority || currentTask.priority,
-          story_points: currentTask.story_points,
-          assignee: updates.assignee ?? currentTask.assignee,
-          sprint_id: updates.sprint_id ?? currentTask.sprint_id,
-          status_id: updates.status_id || currentTask.status_id,
-          project_id: currentTask.project_id,
-          tags: currentTask.tags || [],
-        }),
+        body: JSON.stringify(updateData),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Error al actualizar la tarea");
+        throw new Error("Error al actualizar la tarea");
       }
 
       await fetchTasksAndSprints();
+      setEditingTask({ id: null, field: null });
       toast.success("Tarea actualizada correctamente");
     } catch (error) {
       console.error("Error updating task:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Error al actualizar la tarea"
-      );
+      toast.error("Error al actualizar la tarea");
     }
   };
 
@@ -352,15 +389,14 @@ export default function TasksPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Task</TableHead>
+                  <TableHead>Clave</TableHead>
                   <TableHead>Título</TableHead>
                   <TableHead>Descripción</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead>Prioridad</TableHead>
-                  {/* <TableHead>Puntos</TableHead> */}
-                  <TableHead>Sprint</TableHead>
-                  <TableHead>Tags</TableHead>
+                  <TableHead>Puntos</TableHead>
                   <TableHead>Asignado</TableHead>
-                  {/* <TableHead>Fecha Creación</TableHead> */}
+                  <TableHead>Sprint</TableHead>
                   <TableHead>
                     <Checkbox
                       checked={selectedTasks.size === tasks.length}
@@ -378,20 +414,20 @@ export default function TasksPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={9} className="text-center py-8">
                       Cargando tareas...
                     </TableCell>
                   </TableRow>
                 ) : tasks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={9} className="text-center py-8">
                       No se encontraron tareas
                     </TableCell>
                   </TableRow>
                 ) : (
                   tasks.map((task) => (
                     <TableRow key={task.id}>
-                      <TableCell>
+                      <TableCell className="font-medium">
                         {task.project_code}-{task.task_number}
                       </TableCell>
                       <TableCell>{task.title}</TableCell>
@@ -399,49 +435,199 @@ export default function TasksPage() {
                         {task.description}
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={task.priority}
-                          onValueChange={(value) =>
-                            handleUpdateTask(task.id, {
-                              priority: value as TaskPriority,
-                            })
-                          }
-                        >
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue>
-                              <Badge
-                                className={
-                                  task.priority === "urgent"
-                                    ? "bg-red-500"
-                                    : task.priority === "high"
-                                    ? "bg-orange-500"
-                                    : task.priority === "medium"
-                                    ? "bg-yellow-500"
-                                    : "bg-blue-500"
-                                }
-                              >
-                                {task.priority}
-                              </Badge>
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Baja</SelectItem>
-                            <SelectItem value="medium">Media</SelectItem>
-                            <SelectItem value="high">Alta</SelectItem>
-                            <SelectItem value="urgent">Urgente</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        {editingTask.id === task.id &&
+                        editingTask.field === "status" ? (
+                          <div className="flex items-center gap-2">
+                            <Select
+                              defaultValue={String(task.status_id)}
+                              onValueChange={(value) =>
+                                handleUpdateTask(
+                                  task.id,
+                                  "status_id",
+                                  parseInt(value)
+                                )
+                              }
+                            >
+                              <SelectTrigger className="w-[120px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {statuses.map((status) => (
+                                  <SelectItem
+                                    key={status.id}
+                                    value={String(status.id)}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className="w-2 h-2 rounded-full"
+                                        style={{
+                                          backgroundColor: status.color,
+                                        }}
+                                      />
+                                      {status.name}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FiX
+                              className="cursor-pointer text-gray-500 hover:text-gray-700"
+                              onClick={() =>
+                                setEditingTask({ id: null, field: null })
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <Badge
+                            className="cursor-pointer hover:opacity-80"
+                            style={{ backgroundColor: task.status_color }}
+                            onClick={() =>
+                              setEditingTask({ id: task.id, field: "status" })
+                            }
+                          >
+                            {task.status_name}
+                          </Badge>
+                        )}
                       </TableCell>
-                      {/* <TableCell>{task.story_points}</TableCell> */}
-
+                      <TableCell>
+                        {editingTask.id === task.id &&
+                        editingTask.field === "priority" ? (
+                          <div className="flex items-center gap-2">
+                            <Select
+                              defaultValue={task.priority}
+                              onValueChange={(value) =>
+                                handleUpdateTask(task.id, "priority", value)
+                              }
+                            >
+                              <SelectTrigger className="w-[120px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">Baja</SelectItem>
+                                <SelectItem value="medium">Media</SelectItem>
+                                <SelectItem value="high">Alta</SelectItem>
+                                <SelectItem value="urgent">Urgente</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FiX
+                              className="cursor-pointer text-gray-500 hover:text-gray-700"
+                              onClick={() =>
+                                setEditingTask({ id: null, field: null })
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <Badge
+                            className={`cursor-pointer hover:opacity-80 ${
+                              task.priority === "urgent"
+                                ? "bg-red-500"
+                                : task.priority === "high"
+                                ? "bg-orange-500"
+                                : task.priority === "medium"
+                                ? "bg-yellow-500"
+                                : "bg-blue-500"
+                            }`}
+                            onClick={() =>
+                              setEditingTask({ id: task.id, field: "priority" })
+                            }
+                          >
+                            {task.priority}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{task.story_points}</TableCell>
+                      <TableCell>
+                        {editingTask.id === task.id &&
+                        editingTask.field === "assignee" ? (
+                          <div className="flex items-center gap-2">
+                            <Select
+                              defaultValue={
+                                task.assignee ? String(task.assignee) : "_none"
+                              }
+                              onValueChange={(value) =>
+                                handleUpdateTask(
+                                  task.id,
+                                  "assignee",
+                                  value === "_none" ? null : parseInt(value)
+                                )
+                              }
+                            >
+                              <SelectTrigger className="w-[120px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="_none">
+                                  Sin asignar
+                                </SelectItem>
+                                {Array.isArray(users) &&
+                                  users.map((user) => (
+                                    <SelectItem
+                                      key={user.id}
+                                      value={String(user.id)}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarImage
+                                            src={getAvatarUrl(user.id)}
+                                          />
+                                          <AvatarFallback>
+                                            {user.name[0]}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        {user.name}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <FiX
+                              className="cursor-pointer text-gray-500 hover:text-gray-700"
+                              onClick={() =>
+                                setEditingTask({ id: null, field: null })
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                            onClick={() =>
+                              setEditingTask({
+                                id: task.id,
+                                field: "assignee",
+                              })
+                            }
+                          >
+                            {task.assignee ? (
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage
+                                    src={getAvatarUrl(task.assignee)}
+                                  />
+                                  <AvatarFallback>
+                                    {task.assignee_name?.[0]}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm">
+                                  {task.assignee_name}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-500">
+                                Sin asignar
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Select
                           value={task.sprint_id?.toString() || "_none"}
                           onValueChange={(value) =>
-                            handleUpdateTask(task.id, {
-                              sprint_id:
-                                value !== "_none" ? parseInt(value) : null,
-                            })
+                            handleUpdateTask(
+                              task.id,
+                              "sprint_id",
+                              value !== "_none" ? parseInt(value) : null
+                            )
                           }
                         >
                           <SelectTrigger className="w-[150px]">
@@ -461,90 +647,6 @@ export default function TasksPage() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          {task.tags.map((tag) => (
-                            <Badge
-                              key={tag}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={task.assignee?.toString() || "_none"}
-                          onValueChange={(value) =>
-                            handleUpdateTask(task.id, {
-                              assignee:
-                                value !== "_none" ? parseInt(value) : null,
-                            })
-                          }
-                        >
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue>
-                              {task.assignee ? (
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarImage
-                                      src={`/avatars/${task.assignee}.png`}
-                                    />
-                                    <AvatarFallback>
-                                      {task.assignee_name?.[0] || "U"}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="truncate">
-                                    {task.assignee_name}
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback>?</AvatarFallback>
-                                  </Avatar>
-                                  <span>Sin asignar</span>
-                                </div>
-                              )}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="_none">
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <Avatar className="h-6 w-6">
-                                  <AvatarFallback>?</AvatarFallback>
-                                </Avatar>
-                                <span>Sin asignar</span>
-                              </div>
-                            </SelectItem>
-                            {users.map((user) => (
-                              <SelectItem
-                                key={user.id}
-                                value={user.id.toString()}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarImage
-                                      src={
-                                        user.avatar || `/avatars/${user.id}.png`
-                                      }
-                                    />
-                                    <AvatarFallback>
-                                      {user.name[0]}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="truncate">{user.name}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      {/* <TableCell className="text-sm text-muted-foreground">
-                        {new Date(task.created_at).toLocaleDateString()}
-                      </TableCell> */}
-                      <TableCell>
                         <Checkbox
                           checked={selectedTasks.has(task.id)}
                           onCheckedChange={(checked) => {
@@ -557,33 +659,6 @@ export default function TasksPage() {
                             setSelectedTasks(newSelected);
                           }}
                         />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedTask(task);
-                                setCreateTaskOpen(true);
-                              }}
-                            >
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                /* handle delete */
-                              }}
-                              className="text-red-600"
-                            >
-                              Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))

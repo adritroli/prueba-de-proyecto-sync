@@ -16,29 +16,44 @@ interface TaskRow extends RowDataPacket {
 
 export const getTasks = async (req: Request, res: Response) => {
   try {
-    let query = `
+    let baseQuery = `
       SELECT 
         t.*,
         u.name as assignee_name,
         u.avatar as assignee_avatar,
         ts.name as status_name,
-        ts.color as status_color,
-        s.name as sprint_name,
-        p.name as project_name,
-        p.badge_color as project_badge_color
+        ts.color as status_color
       FROM tasks t
       LEFT JOIN users u ON t.assignee = u.id
       LEFT JOIN task_status ts ON t.status_id = ts.id
-      LEFT JOIN sprints s ON t.sprint_id = s.id
-      LEFT JOIN projects p ON t.project_id = p.id
       WHERE 1=1
     `;
 
     const params: any[] = [];
+    const conditions: string[] = [];
 
-    // Aplicar filtros si existen
+    // Manejar búsqueda
+    if (req.query.search) {
+      conditions.push(`(t.title LIKE ? OR t.description LIKE ?)`);
+      const searchTerm = `%${req.query.search}%`;
+      params.push(searchTerm, searchTerm);
+    }
+
+    // Manejar sprint_ids (solo una vez)
+    if (req.query.sprint_id) {
+      const sprintIds = Array.isArray(req.query.sprint_id) 
+        ? req.query.sprint_id 
+        : [req.query.sprint_id];
+
+      if (sprintIds.length > 0) {
+        conditions.push(`t.sprint_id IN (?)`);
+        params.push(sprintIds);
+      }
+    }
+
+    // Manejar otros filtros
     if (req.query.dateFrom && req.query.dateTo) {
-      query += ` AND t.created_at BETWEEN ? AND ?`;
+      conditions.push(`t.created_at BETWEEN ? AND ?`);
       params.push(req.query.dateFrom, req.query.dateTo);
     }
 
@@ -46,7 +61,7 @@ export const getTasks = async (req: Request, res: Response) => {
       const priorities = Array.isArray(req.query.priority) 
         ? req.query.priority 
         : [req.query.priority];
-      query += ` AND t.priority IN (?)`;
+      conditions.push(`t.priority IN (?)`);
       params.push(priorities);
     }
 
@@ -54,7 +69,7 @@ export const getTasks = async (req: Request, res: Response) => {
       const statuses = Array.isArray(req.query.status) 
         ? req.query.status 
         : [req.query.status];
-      query += ` AND t.status_id IN (?)`;
+      conditions.push(`t.status_id IN (?)`);
       params.push(statuses);
     }
 
@@ -62,47 +77,71 @@ export const getTasks = async (req: Request, res: Response) => {
       const assignees = Array.isArray(req.query.assignee) 
         ? req.query.assignee 
         : [req.query.assignee];
-      query += ` AND t.assignee IN (?)`;
+      conditions.push(`t.assignee IN (?)`);
       params.push(assignees);
     }
 
     if (req.query.storyPointsMin) {
-      query += ` AND t.story_points >= ?`;
+      conditions.push(`t.story_points >= ?`);
       params.push(req.query.storyPointsMin);
     }
 
     if (req.query.storyPointsMax) {
-      query += ` AND t.story_points <= ?`;
+      conditions.push(`t.story_points <= ?`);
       params.push(req.query.storyPointsMax);
     }
 
     if (req.query.tags) {
-      query += ` AND JSON_CONTAINS(t.tags, ?)`;
+      conditions.push(`JSON_CONTAINS(t.tags, ?)`);
       params.push(JSON.stringify(req.query.tags));
     }
 
-    query += ` ORDER BY t.created_at DESC`;
+    // Agregar todas las condiciones a la consulta
+    if (conditions.length > 0) {
+      baseQuery += ` AND ${conditions.join(' AND ')}`;
+    }
 
-    const [rows] = await pool.query(query, params);
-    const tasks = rows as RowDataPacket[];
+    // Agregar ordenamiento y paginación
+    baseQuery += ` ORDER BY t.created_at DESC LIMIT ? OFFSET ?`;
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+    
+    params.push(limit, offset);
+
+    console.log('Final Query:', baseQuery);
+    console.log('Parameters:', params);
+
+    const [rows] = await pool.query(baseQuery, params);
+
+    // Consulta para el total de registros
+    let countQuery = `
+      SELECT COUNT(*) as total 
+      FROM tasks t 
+      WHERE 1=1
+    `;
+    if (conditions.length > 0) {
+      countQuery += ` AND ${conditions.join(' AND ')}`;
+    }
+
+    const [totalRows] = await pool
+      .query<RowDataPacket[]>(countQuery, params.slice(0, -2));
 
     res.json({
-      data: tasks,
+      data: rows,
       pagination: {
-        total: tasks.length,
-        page: parseInt(req.query.page as string) || 1,
-        limit: parseInt(req.query.limit as string) || tasks.length
-      }
+        total: totalRows[0].total,
+        page,
+        limit,
+        totalPages: Math.ceil(totalRows[0].total / limit),
+      },
     });
   } catch (error) {
-    console.error("Error fetching tasks:", error);
+    console.error('Error detallado:', error);
     res.status(500).json({ 
-      data: [], 
-      pagination: {
-        total: 0,
-        page: 1,
-        limit: 0
-      }
+      message: 'Error al obtener tareas',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
