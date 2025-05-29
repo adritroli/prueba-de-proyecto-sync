@@ -1,12 +1,13 @@
 import { Router } from 'express';
-import { login, getRoles, getModules, getRolePermissions, updateRolePermissions } from '../controllers/authController';
+import * as authController from '../controllers/authController';
 
 const router = Router();
 
-router.post('/login', login);
-router.get('/roles', getRoles);
-router.get('/modules', getModules);
-router.get('/roles/:roleId/permissions', getRolePermissions);
-router.put('/roles/:roleId/permissions', updateRolePermissions);
+router.post('/login', authController.login);
+router.post('/logout', authController.logout);
+router.get('/roles', authController.getRoles);
+router.get('/modules', authController.getModules);
+router.get('/roles/:roleId/permissions', authController.getRolePermissions);
+router.put('/roles/:roleId/permissions', authController.updateRolePermissions);
 
 export default router;

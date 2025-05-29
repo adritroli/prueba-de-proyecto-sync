@@ -73,6 +73,15 @@ export default function UsersPage() {
     fetchTeams();
   }, [page, search, roleFilter, teamFilter, statusFilter]);
 
+  // Agregar intervalo de actualización
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchUsers();
+    }, 30000); // Actualizar cada 30 segundos
+
+    return () => clearInterval(interval);
+  }, [page, search, roleFilter, teamFilter, statusFilter]);
+
   const fetchUsers = async () => {
     try {
       const params = new URLSearchParams({
@@ -86,6 +95,15 @@ export default function UsersPage() {
 
       const response = await fetch(`http://localhost:5000/api/users?${params}`);
       const data: PaginatedResponse = await response.json();
+      console.log(
+        "Users data received:",
+        data.data.map((u) => ({
+          id: u.id,
+          name: u.name,
+          connection_status: u.connection_status,
+        }))
+      );
+
       setUsers(data.data);
       setTotalPages(data.pagination.totalPages);
     } catch (error) {
@@ -123,11 +141,24 @@ export default function UsersPage() {
       case "online":
         return "bg-green-500";
       case "offline":
-        return "bg-red-500";
+        return "bg-gray-400";
       case "away":
         return "bg-yellow-500";
       default:
-        return "bg-gray-500";
+        return "bg-gray-400";
+    }
+  };
+
+  const getConnectionStatusText = (status: string | undefined) => {
+    switch (status) {
+      case "online":
+        return "En línea";
+      case "offline":
+        return "Desconectado";
+      case "away":
+        return "Ausente";
+      default:
+        return "Desconectado";
     }
   };
 
@@ -181,17 +212,28 @@ export default function UsersPage() {
     }
   };
 
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString)
-      return <span className="text-gray-400">User not connected</span>;
-    const date = new Date(dateString);
-    return date.toLocaleString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) {
+      return <span className="text-muted-foreground">No hay registros</span>;
+    }
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return <span className="text-muted-foreground">Fecha inválida</span>;
+      }
+
+      return date.toLocaleString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return <span className="text-muted-foreground">Error en fecha</span>;
+    }
   };
 
   return (
@@ -378,8 +420,18 @@ export default function UsersPage() {
                         className={`h-2.5 w-2.5 rounded-full ${getConnectionStatusColor(
                           user.connection_status
                         )}`}
-                      ></div>
-                      {user.connection_status}
+                      />
+                      <span
+                        className={`text-sm ${
+                          user.connection_status === "online"
+                            ? "text-green-600"
+                            : user.connection_status === "away"
+                            ? "text-yellow-600"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        {getConnectionStatusText(user.connection_status)}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>{formatDate(user.last_connection)}</TableCell>

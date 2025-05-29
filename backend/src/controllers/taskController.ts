@@ -437,12 +437,12 @@ export const updateTask = async (req: Request, res: Response) => {
     await connection.commit();
     
     // Obtener la tarea actualizada
-    const [updatedTask] = await connection.query(
+    const [updatedTaskRows] = await connection.query<RowDataPacket[]>(
       'SELECT * FROM tasks WHERE id = ?',
       [id]
     );
 
-    res.json(updatedTask[0]);
+    res.json(updatedTaskRows[0]);
   } catch (error) {
     await connection.rollback();
     console.error('Error updating task:', error);
@@ -652,7 +652,7 @@ export const updateTaskUser = async (req: Request, res: Response) => {
       [userId, taskKey]
     );
 
-    const [updatedTask] = await connection.query<RowDataPacket[]>(`
+    const [updatedTaskRows] = await connection.query<RowDataPacket[]>(`
       SELECT t.*, 
              ts.name as status_name,
              ts.color as status_color,
@@ -668,7 +668,7 @@ export const updateTaskUser = async (req: Request, res: Response) => {
     `, [taskKey]);
 
     await connection.commit();
-    res.json(updatedTask[0]);
+    res.json((updatedTaskRows as RowDataPacket[])[0]);
   } catch (error) {
     await connection.rollback();
     console.error('Error updating task user:', error);

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, RequestHandler } from 'express';
 import { pool } from '../config/db';
 import { RowDataPacket } from 'mysql2/promise';
 import jwt from 'jsonwebtoken';
@@ -15,27 +15,57 @@ interface UserResult extends RowDataPacket {
 }
 
 export const login = async (req: Request, res: Response): Promise<void> => {
+  const connection = await pool.getConnection();
   try {
-    const { email, password } = req.body;
+    const { username, email, password } = req.body;
+    const loginIdentifier = username || email;
+    
+    console.log('Login attempt:', { identifier: loginIdentifier, body: req.body });
 
-    const [userRows] = await pool.query<UserResult[]>(`
-      SELECT u.*, rg.name_rol 
-      FROM users u
-      JOIN role_group rg ON u.role_group_id = rg.id
-      WHERE u.email = ?`, 
-      [email]
+    if (!loginIdentifier || !password) {
+      console.log('Missing credentials:', { identifier: !!loginIdentifier, password: !!password });
+      res.status(400).json({ 
+        message: 'Credenciales son requeridas' 
+      });
+      return;
+    }
+
+    const [users] = await connection.query<RowDataPacket[]>(
+      'SELECT * FROM users WHERE username = ? OR email = ?',
+      [loginIdentifier, loginIdentifier]
     );
 
-    if (userRows.length === 0) {
-       res.status(401).json({ message: 'Credenciales incorrectas' });
+    console.log('Users found:', users.length);
+
+    if (users.length === 0) {
+      console.log('User not found:', loginIdentifier);
+      res.status(401).json({ 
+        message: 'Credenciales inválidas' 
+      });
+      return;
     }
 
-    const user = userRows[0];
+    const user = users[0];
+    console.log('User data:', { id: user.id, name: user.name, hasPassword: !!user.password });
+
     const validPassword = await bcrypt.compare(password, user.password);
+    console.log('Password validation:', { valid: validPassword });
 
     if (!validPassword) {
-       res.status(401).json({ message: 'Credenciales incorrectas' });
+      res.status(401).json({ 
+        message: 'Credenciales inválidas' 
+      });
+      return;
     }
+
+    // Actualizar estado de conexión
+    await connection.query(
+      `UPDATE users 
+       SET connection_status = 'online',
+           last_connection = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [user.id]
+    );
 
     const token = jwt.sign(
       { id: user.id }, 
@@ -49,14 +79,57 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         email: user.email,
         name: user.name,
         role_group_id: user.role_group_id,
-        name_rol: user.name_rol
+        name_rol: user.name_rol,
+        connection_status: 'online',
+        last_connection: new Date()
       }
     });
-
   } catch (error) {
-    console.error('Error en login:', error);
-    logger.error('Error en login:', { error });
+    console.error('Login error details:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined
+    });
     res.status(500).json({ message: 'Error interno del servidor' });
+  } finally {
+    connection.release();
+  }
+};
+
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  const connection = await pool.getConnection();
+  try {
+    const userId = req.body.userId;
+    console.log('Recibida petición de logout para usuario:', userId);
+
+    if (!userId) {
+      res.status(400).json({ message: 'UserId es requerido' });
+      return;
+    }
+
+    const [result] = await connection.query(
+      `UPDATE users 
+       SET connection_status = 'offline',
+           last_connection = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [userId]
+    );
+
+    console.log('Resultado de la actualización:', result);
+
+    await connection.commit();
+    console.log('Logout completado para usuario:', userId);
+    
+    res.json({ 
+      message: 'Sesión cerrada correctamente',
+      status: 'offline',
+      timestamp: new Date()
+    });
+  } catch (error) {
+    console.error('Error en logout:', error);
+    await connection.rollback();
+    res.status(500).json({ message: 'Error al cerrar sesión' });
+  } finally {
+    connection.release();
   }
 };
 
