@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -34,10 +35,13 @@ import {
   Archive,
   Trash2,
   Inbox,
-  Folder, // Agregar esta importación
+  Folder,
   CheckCircle2,
+  Share, // Agregar esta importación
+  Users, // También necesario para el ícono de "Compartidas conmigo"
 } from "lucide-react";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -77,13 +81,20 @@ export default function PaginaPruebas() {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const filteredPasswords = passwords.filter((password) => {
+    if (selectedFolder === "shared_by_me") {
+      return password.share_type === "shared_by_me";
+    }
+    if (selectedFolder === "shared_with_me") {
+      return password.share_type === "shared_with_me";
+    }
+    // Resto de los casos originales
     switch (selectedFolder) {
       case "favorites":
         return password.favorite;
       case "trash":
         return password.deleted;
       case "all":
-        return !password.deleted;
+        return !password.deleted && !password.share_type;
       default:
         return password.folder_id === selectedFolder && !password.deleted;
     }
@@ -117,22 +128,39 @@ export default function PaginaPruebas() {
   const fetchPasswords = async () => {
     try {
       let url = "http://localhost:5000/api/passwords";
+      let params = new URLSearchParams();
+
+      console.log("Current selected folder:", selectedFolder);
 
       // Agregar el parámetro folder_id para los filtros especiales
       if (selectedFolder === "favorites") {
-        url += "?folder_id=favorites";
+        params.set("folder_id", "favorites");
       } else if (selectedFolder === "trash") {
-        url += "?folder_id=trash";
+        params.set("folder_id", "trash");
+      } else if (selectedFolder === "shared_by_me") {
+        console.log("Fetching passwords shared by me");
+        params.set("share_filter", "shared_by_me");
+      } else if (selectedFolder === "shared_with_me") {
+        console.log("Fetching passwords shared with me");
+        params.set("share_filter", "shared_with_me");
       } else if (selectedFolder !== "all") {
-        url += `?folder_id=${selectedFolder}`;
+        params.set("folder_id", selectedFolder);
       }
 
-      const response = await fetch(url, {
+      const finalUrl = `${url}${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+      console.log("Fetching passwords from:", finalUrl);
+
+      const response = await fetch(finalUrl, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`, // Asume que tienes el token guardado
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
+
       const data = await response.json();
+      console.log("Received passwords:", data);
+
       setPasswords(data);
     } catch (error) {
       console.error("Error fetching passwords:", error);
@@ -298,49 +326,7 @@ export default function PaginaPruebas() {
     }
   };
 
-  // Modificar el contenido de la tabla cuando selectedFolder es "trash"
-  {
-    selectedFolder === "trash" && filteredPasswords.length > 0 && (
-      <div className="mb-4">
-        <Button
-          onClick={restoreSelectedPasswords}
-          disabled={selectedPasswords.length === 0}
-          variant="outline"
-          className="gap-2"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          Restaurar seleccionadas ({selectedPasswords.length})
-        </Button>
-      </div>
-    );
-  }
-
-  // Modificar la celda de acciones en la tabla
-  <TableCell className="text-right">
-    <div className="flex justify-end gap-2">
-      {selectedFolder === "trash" ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => restorePassword(entry.id)}
-        >
-          <CheckCircle2 className="h-4 w-4 mr-2" />
-          Restaurar
-        </Button>
-      ) : (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setSelectedPassword(entry);
-            setDetailsOpen(true);
-          }}
-        >
-          Ver detalles
-        </Button>
-      )}
-    </div>
-  </TableCell>;
+  // (El bloque que usaba 'entry' fuera de contexto ha sido eliminado porque la lógica de acciones de tabla ya está correctamente implementada en renderPasswordRow)
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -379,6 +365,132 @@ export default function PaginaPruebas() {
     } catch (error) {
       console.error("Error updating folders:", error);
       toast.error("Error al actualizar las carpetas");
+    }
+  };
+
+  // Modificar el renderizado de la tabla para mostrar información de compartición
+  const renderPasswordRow = (entry: PasswordEntry) => (
+    <TableRow key={entry.id}>
+      <TableCell>
+        <Checkbox
+          checked={selectedPasswords.includes(entry.id)}
+          onCheckedChange={() => handleSelectPassword(entry.id)}
+          aria-label={`Select ${entry.title}`}
+        />
+      </TableCell>
+      <TableCell className="font-medium">{entry.title}</TableCell>
+      <TableCell>{entry.username}</TableCell>
+      <TableCell>
+        {entry.url && (
+          <a
+            href={entry.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            {entry.url}
+          </a>
+        )}
+      </TableCell>
+      <TableCell>
+        <Button
+          variant="ghost"
+          size="sm"
+          // Deshabilitar el botón de favorito si es una contraseña compartida
+          disabled={entry.share_type === "shared_with_me"}
+          onClick={() => toggleFavorite(entry.id)}
+          className={entry.favorite ? "text-yellow-400" : ""}
+        >
+          <Star
+            className={`h-4 w-4 ${entry.favorite ? "fill-yellow-400" : ""}`}
+          />
+        </Button>
+      </TableCell>
+      {/* Agregar columna de información de compartición */}
+      <TableCell>
+        {entry.share_type === "shared_with_me" && (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">
+              Compartido por {entry.owner_name || "Desconocido"}
+            </Badge>
+          </div>
+        )}
+        {entry.share_type === "shared_by_me" && (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">Compartido por ti</Badge>
+            {entry.shared_with && (
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">
+                  con {entry.shared_with}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    {
+                      entry.shared_with_id &&
+                        handleRemoveShare(entry.id, entry.shared_with_id);
+                    }
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          {selectedFolder === "trash" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => restorePassword(entry.id)}
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Restaurar
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedPassword(entry);
+                setDetailsOpen(true);
+              }}
+            >
+              Ver detalles
+            </Button>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+
+  const handleRemoveShare = async (passwordId: string, userId: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/passwords/${passwordId}/shares/${userId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al dejar de compartir");
+      }
+
+      fetchPasswords();
+      toast.success("Se dejó de compartir la contraseña");
+    } catch (error) {
+      console.error("Error removing share:", error);
+      toast.error("Error al dejar de compartir la contraseña");
     }
   };
 
@@ -423,6 +535,22 @@ export default function PaginaPruebas() {
                     >
                       <Star className="mr-2 h-4 w-4" />
                       Favoritos
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => setSelectedFolder("shared_by_me")}
+                    >
+                      <Share className="mr-2 h-4 w-4" />
+                      Compartidas por mí
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => setSelectedFolder("shared_with_me")}
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Compartidas conmigo
                     </Button>
                   </div>
 
@@ -523,80 +651,12 @@ export default function PaginaPruebas() {
                         <TableHead>Usuario</TableHead>
                         <TableHead>URL</TableHead>
                         <TableHead>Favorito</TableHead>
+                        <TableHead>Compartido</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredPasswords.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedPasswords.includes(entry.id)}
-                              onCheckedChange={() =>
-                                handleSelectPassword(entry.id)
-                              }
-                              aria-label={`Select ${entry.title}`}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {entry.title}
-                          </TableCell>
-                          <TableCell>{entry.username}</TableCell>
-                          <TableCell>
-                            {entry.url && (
-                              <a
-                                href={entry.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-500 hover:underline"
-                              >
-                                {entry.url}
-                              </a>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleFavorite(entry.id)}
-                              className={
-                                entry.favorite ? "text-yellow-400" : ""
-                              }
-                            >
-                              <Star
-                                className={`h-4 w-4 ${
-                                  entry.favorite ? "fill-yellow-400" : ""
-                                }`}
-                              />
-                            </Button>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              {selectedFolder === "trash" ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => restorePassword(entry.id)}
-                                >
-                                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                                  Restaurar
-                                </Button>
-                              ) : (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedPassword(entry);
-                                    setDetailsOpen(true);
-                                  }}
-                                >
-                                  Ver detalles
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredPasswords.map(renderPasswordRow)}
                     </TableBody>
                   </Table>
                 </div>

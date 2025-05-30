@@ -9,9 +9,13 @@ export interface PasswordEntry {
   createdAt: Date;
   updatedAt: Date;
   favorite: boolean;
-  shared_with?: string[];
+  shared_with?: string;
+  shared_with_id?: string;
   folder_id?: string;
   deleted?: boolean;
+  share_type?: 'shared_by_me' | 'shared_with_me';
+  owner_name?: string;
+  shared_by?: number;
 }
 
 export interface PasswordGeneratorOptions {
