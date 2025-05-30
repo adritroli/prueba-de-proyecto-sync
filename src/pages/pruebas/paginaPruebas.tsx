@@ -35,6 +35,7 @@ import {
   Trash2,
   Inbox,
   Folder, // Agregar esta importación
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -259,6 +260,87 @@ export default function PaginaPruebas() {
       toast.error("Error al eliminar la contraseña");
     }
   };
+
+  const restorePassword = async (id: string) => {
+    try {
+      await fetch(`http://localhost:5000/api/passwords/${id}/restore`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      fetchPasswords();
+      toast.success("Contraseña restaurada");
+    } catch (error) {
+      console.error("Error restoring password:", error);
+      toast.error("Error al restaurar la contraseña");
+    }
+  };
+
+  const restoreSelectedPasswords = async () => {
+    try {
+      await fetch(`http://localhost:5000/api/passwords/restore-multiple`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ ids: selectedPasswords }),
+      });
+
+      fetchPasswords();
+      setSelectedPasswords([]);
+      toast.success("Contraseñas restauradas exitosamente");
+    } catch (error) {
+      console.error("Error restoring passwords:", error);
+      toast.error("Error al restaurar las contraseñas");
+    }
+  };
+
+  // Modificar el contenido de la tabla cuando selectedFolder es "trash"
+  {
+    selectedFolder === "trash" && filteredPasswords.length > 0 && (
+      <div className="mb-4">
+        <Button
+          onClick={restoreSelectedPasswords}
+          disabled={selectedPasswords.length === 0}
+          variant="outline"
+          className="gap-2"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Restaurar seleccionadas ({selectedPasswords.length})
+        </Button>
+      </div>
+    );
+  }
+
+  // Modificar la celda de acciones en la tabla
+  <TableCell className="text-right">
+    <div className="flex justify-end gap-2">
+      {selectedFolder === "trash" ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => restorePassword(entry.id)}
+        >
+          <CheckCircle2 className="h-4 w-4 mr-2" />
+          Restaurar
+        </Button>
+      ) : (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setSelectedPassword(entry);
+            setDetailsOpen(true);
+          }}
+        >
+          Ver detalles
+        </Button>
+      )}
+    </div>
+  </TableCell>;
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -489,16 +571,29 @@ export default function PaginaPruebas() {
                             </Button>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedPassword(entry);
-                                setDetailsOpen(true);
-                              }}
-                            >
-                              Ver detalles
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              {selectedFolder === "trash" ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => restorePassword(entry.id)}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  Restaurar
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedPassword(entry);
+                                    setDetailsOpen(true);
+                                  }}
+                                >
+                                  Ver detalles
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -571,6 +666,18 @@ export default function PaginaPruebas() {
                     onChange={(e) =>
                       setNewEntry({ ...newEntry, url: e.target.value })
                     }
+                  />
+                </div>
+                {/* Agregar campo de notas */}
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="notes">Notas</Label>
+                  <Input
+                    id="notes"
+                    value={newEntry.notes}
+                    onChange={(e) =>
+                      setNewEntry({ ...newEntry, notes: e.target.value })
+                    }
+                    placeholder="Notas adicionales sobre esta contraseña..."
                   />
                 </div>
                 <div className="space-y-2">

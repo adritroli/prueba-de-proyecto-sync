@@ -232,3 +232,47 @@ export const toggleFavorite = async (req: Request, res: Response) => {
       connection.release();
     }
   }
+
+  export const restorePassword = async (req: Request, res: Response) => {
+    const connection = await pool.getConnection();
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+
+      await connection.query(
+        'UPDATE password_entries SET deleted = FALSE WHERE id = ? AND user_id = ?',
+        [id, userId]
+      );
+
+      res.json({ message: 'Password restored successfully' });
+    } catch (error) {
+      console.error('Error in restorePassword:', error);
+      res.status(500).json({ error: 'Error restoring password' });
+    } finally {
+      connection.release();
+    }
+  };
+
+  export const restoreMultiplePasswords = async (req: Request, res: Response) => {
+    const connection = await pool.getConnection();
+    try {
+      const userId = req.user?.id;
+      const { ids } = req.body;
+
+      if (!Array.isArray(ids)) {
+        return res.status(400).json({ error: 'ids must be an array' });
+      }
+
+      await connection.query(
+        'UPDATE password_entries SET deleted = FALSE WHERE id IN (?) AND user_id = ?',
+        [ids, userId]
+      );
+
+      res.json({ message: 'Passwords restored successfully' });
+    } catch (error) {
+      console.error('Error in restoreMultiplePasswords:', error);
+      res.status(500).json({ error: 'Error restoring passwords' });
+    } finally {
+      connection.release();
+    }
+  };
