@@ -40,6 +40,7 @@ import {
   CheckCircle2,
   Share, // Agregar esta importación
   Users, // También necesario para el ícono de "Compartidas conmigo"
+  Search,
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { X } from "lucide-react";
@@ -60,6 +61,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { BsFillEyeFill } from "react-icons/bs";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,6 +73,8 @@ import {
 import { MoreVertical } from "lucide-react";
 
 export default function PaginaPruebas() {
+  // Agregar estado para búsqueda después de los otros estados
+  const [searchTerm, setSearchTerm] = useState("");
   // Añadir nuevo estado para selección múltiple
   const [selectedPasswords, setSelectedPasswords] = useState<string[]>([]);
   const [passwords, setPasswords] = useState<PasswordEntry[]>([]);
@@ -104,13 +109,23 @@ export default function PaginaPruebas() {
   const [deletingFolder, setDeletingFolder] = useState<string | null>(null);
 
   const filteredPasswords = passwords.filter((password) => {
+    // Primero aplicar el filtro de búsqueda
+    const searchMatch =
+      searchTerm.toLowerCase().trim() === "" ||
+      password.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      password.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (password.url?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+
+    if (!searchMatch) return false;
+
+    // Luego aplicar los demás filtros
     if (selectedFolder === "shared_by_me") {
       return password.share_type === "shared_by_me";
     }
     if (selectedFolder === "shared_with_me") {
       return password.share_type === "shared_with_me";
     }
-    // Resto de los casos originales
+
     switch (selectedFolder) {
       case "favorites":
         return password.favorite;
@@ -447,41 +462,48 @@ export default function PaginaPruebas() {
           />
         </Button>
       </TableCell>
-      {/* Agregar columna de información de compartición */}
+      {/* Columna Compartido en TableCell */}
       <TableCell>
-        {entry.share_type === "shared_with_me" && (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              Compartido por {entry.owner_name || "Desconocido"}
-            </Badge>
-          </div>
-        )}
-        {entry.share_type === "shared_by_me" && (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">Compartido por ti</Badge>
-            {entry.shared_with && (
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-muted-foreground">
-                  con {entry.shared_with}
-                </span>
+        {(() => {
+          if (entry.share_type === "shared_with_me") {
+            return (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  Compartido por {entry.owner_name || "Desconocido"}
+                </Badge>
+              </div>
+            );
+          }
+          if (entry.share_type === "shared_by_me") {
+            return (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  Compartido con {entry.shared_with}
+                </Badge>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-6 w-6 p-0"
                   onClick={(e) => {
                     e.stopPropagation();
-                    {
-                      entry.shared_with_id &&
-                        handleRemoveShare(entry.id, entry.shared_with_id);
-                    }
+                    entry.shared_with_id &&
+                      handleRemoveShare(entry.id, entry.shared_with_id);
                   }}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-            )}
-          </div>
-        )}
+            );
+          }
+          // Si no está compartida
+          return (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-muted-foreground">
+                No compartida
+              </Badge>
+            </div>
+          );
+        })()}
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
@@ -503,7 +525,7 @@ export default function PaginaPruebas() {
                 setDetailsOpen(true);
               }}
             >
-              Ver detalles
+              <BsFillEyeFill />
             </Button>
           )}
         </div>
@@ -628,168 +650,179 @@ export default function PaginaPruebas() {
             >
               {/* Sidebar */}
               <ResizablePanel defaultSize={25} minSize={20} maxSize={30}>
-                <div className="flex flex-col h-full p-4  space-y-3">
-                  <div className="space-y-2">
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start ${
-                        selectedFolder === "all"
-                          ? "bg-green-100/10 text-green-500"
-                          : ""
-                      }`}
-                      onClick={() => setSelectedFolder("all")}
-                    >
-                      <Inbox className="mr-2 h-4 w-4" />
-                      Todas
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start ${
-                        selectedFolder === "favorites"
-                          ? "bg-green-100/10 text-green-500"
-                          : ""
-                      }`}
-                      onClick={() => setSelectedFolder("favorites")}
-                    >
-                      <Star className="mr-2 h-4 w-4" />
-                      Favoritos
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start ${
-                        selectedFolder === "shared_by_me"
-                          ? "bg-green-100/10 text-green-500"
-                          : ""
-                      }`}
-                      onClick={() => setSelectedFolder("shared_by_me")}
-                    >
-                      <Share className="mr-2 h-4 w-4" />
-                      Compartidas por mí
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start ${
-                        selectedFolder === "shared_with_me"
-                          ? "bg-green-100/10 text-green-500"
-                          : ""
-                      }`}
-                      onClick={() => setSelectedFolder("shared_with_me")}
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      Compartidas conmigo
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-sm font-semibold">Carpetas</h3>
+                <div className="flex flex-col h-full p-4 space-y-4">
+                  <div className="flex flex-col flex-1">
+                    {/* Filtros principales */}
+                    <div className="space-y-2">
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-8 w-8"
-                        onClick={() => setNewFolderInput(true)}
+                        className={`w-full justify-start ${
+                          selectedFolder === "all"
+                            ? "bg-green-500/10 text-green-500"
+                            : ""
+                        }`}
+                        onClick={() => setSelectedFolder("all")}
                       >
-                        <FolderPlus className="h-4 w-4" />
+                        <Inbox className="mr-2 h-4 w-4" />
+                        Todas
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className={`w-full justify-start ${
+                          selectedFolder === "favorites"
+                            ? "bg-green-500/10 text-green-500"
+                            : ""
+                        }`}
+                        onClick={() => setSelectedFolder("favorites")}
+                      >
+                        <Star className="mr-2 h-4 w-4" />
+                        Favoritos
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className={`w-full justify-start ${
+                          selectedFolder === "shared_by_me"
+                            ? "bg-green-500/10 text-green-500"
+                            : ""
+                        }`}
+                        onClick={() => setSelectedFolder("shared_by_me")}
+                      >
+                        <Share className="mr-2 h-4 w-4" />
+                        Compartidas por mí
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className={`w-full justify-start ${
+                          selectedFolder === "shared_with_me"
+                            ? "bg-green-500/10 text-green-500"
+                            : ""
+                        }`}
+                        onClick={() => setSelectedFolder("shared_with_me")}
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        Compartidas conmigo
                       </Button>
                     </div>
-                    {newFolderInput && (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="Nombre de la carpeta"
-                          className="h-8"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && e.currentTarget.value) {
-                              addFolder(e.currentTarget.value);
-                            }
-                          }}
-                          autoFocus
-                          onBlur={(e) => {
-                            if (e.target.value) {
-                              addFolder(e.target.value);
-                            } else {
-                              setNewFolderInput(false);
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
-                    {folders.map((folder) => (
-                      <div
-                        key={folder.id}
-                        className="flex items-center justify-between group"
-                      >
+
+                    {/* Carpetas */}
+                    <div className="mt-4 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-semibold">Carpetas</h3>
                         <Button
                           variant="ghost"
-                          className={`w-full justify-between boton-carpetas ${
-                            selectedFolder === folder.id
-                              ? "bg-green-100/10 text-green-500"
-                              : ""
-                          }`}
-                          onClick={() => setSelectedFolder(folder.id)}
+                          size="sm"
+                          className="h-8 w-8"
+                          onClick={() => setNewFolderInput(true)}
                         >
-                          <div className="flex items-center">
-                            <Folder className="mr-2 h-4 w-4" />
-                            {folder.name}
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setEditingFolder(folder.id);
-                                  setEditingFolderName(folder.name);
-                                }}
-                              >
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Editar nombre
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={() => setDeletingFolder(folder.id)}
-                              >
-                                <Trash className="mr-2 h-4 w-4" />
-                                Eliminar carpeta
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <FolderPlus className="h-4 w-4" />
                         </Button>
                       </div>
-                    ))}
 
-                    <div className="mt-auto space-y-2">
-                      <Button
-                        variant="ghost"
-                        className={`w-full justify-start ${
-                          selectedFolder === "archived"
-                            ? "bg-green-100/10 text-green-500"
-                            : ""
-                        }`}
-                        onClick={() => setSelectedFolder("archived")}
-                      >
-                        <Archive className="mr-2 h-4 w-4" />
-                        Archivadas
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className={`w-full justify-start ${
-                          selectedFolder === "trash"
-                            ? "bg-red-100/10 text-green-500"
-                            : ""
-                        }`}
-                        onClick={() => setSelectedFolder("trash")}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Papelera
-                      </Button>
+                      {/* Input para nueva carpeta */}
+                      {newFolderInput && (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Nombre de la carpeta"
+                            className="h-8"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && e.currentTarget.value) {
+                                addFolder(e.currentTarget.value);
+                              }
+                            }}
+                            autoFocus
+                            onBlur={(e) => {
+                              if (e.target.value) {
+                                addFolder(e.target.value);
+                              } else {
+                                setNewFolderInput(false);
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Lista de carpetas */}
+                      {folders.map((folder) => (
+                        <div
+                          key={folder.id}
+                          className="flex items-center justify-between group"
+                        >
+                          <div className="flex items-center justify-between w-full gap-1 ">
+                            <Button
+                              variant="ghost"
+                              className={`flex-1 justify-start ${
+                                selectedFolder === folder.id
+                                  ? "bg-green-100/10 text-green-500"
+                                  : ""
+                              }`}
+                              onClick={() => setSelectedFolder(folder.id)}
+                            >
+                              <div className="flex items-center">
+                                <Folder className="mr-2 h-4 w-4" />
+                                {folder.name}
+                              </div>
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setEditingFolder(folder.id);
+                                    setEditingFolderName(folder.name);
+                                  }}
+                                >
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Editar nombre
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => setDeletingFolder(folder.id)}
+                                >
+                                  <Trash className="mr-2 h-4 w-4" />
+                                  Eliminar carpeta
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  </div>
+
+                  {/* Archivadas y Papelera al final */}
+                  <div className="mt-auto pt-4 space-y-2">
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start ${
+                        selectedFolder === "archived"
+                          ? "bg-green-500/10 text-green-500"
+                          : ""
+                      }`}
+                      onClick={() => setSelectedFolder("archived")}
+                    >
+                      <Archive className="mr-2 h-4 w-4" />
+                      Archivadas
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start ${
+                        selectedFolder === "trash"
+                          ? "bg-green-500/10 text-green-500"
+                          : ""
+                      }`}
+                      onClick={() => setSelectedFolder("trash")}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Papelera
+                    </Button>
                   </div>
                 </div>
               </ResizablePanel>
@@ -799,39 +832,51 @@ export default function PaginaPruebas() {
               {/* Contenido principal */}
               <ResizablePanel defaultSize={75}>
                 <div className="p-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Checkbox
-                            checked={
-                              selectedPasswords.length ===
-                              filteredPasswords.length
-                            }
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedPasswords(
-                                  filteredPasswords.map((p) => p.id)
-                                );
-                              } else {
-                                setSelectedPasswords([]);
+                  {/* Agregar buscador aquí */}
+                  <div className="relative mb-4">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar contraseña por título, usuario o URL..."
+                      className="pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Card className="pt-1 pb-1  rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={
+                                selectedPasswords.length ===
+                                filteredPasswords.length
                               }
-                            }}
-                            aria-label="Select all"
-                          />
-                        </TableHead>
-                        <TableHead>Título</TableHead>
-                        <TableHead>Usuario</TableHead>
-                        <TableHead>URL</TableHead>
-                        <TableHead>Favorito</TableHead>
-                        <TableHead>Compartido</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredPasswords.map(renderPasswordRow)}
-                    </TableBody>
-                  </Table>
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedPasswords(
+                                    filteredPasswords.map((p) => p.id)
+                                  );
+                                } else {
+                                  setSelectedPasswords([]);
+                                }
+                              }}
+                              aria-label="Select all"
+                            />
+                          </TableHead>
+                          <TableHead>Título</TableHead>
+                          <TableHead>Usuario</TableHead>
+                          <TableHead>URL</TableHead>
+                          <TableHead>Favorito</TableHead>
+                          <TableHead>Compartido</TableHead>
+                          <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredPasswords.map(renderPasswordRow)}
+                      </TableBody>
+                    </Table>
+                  </Card>
                 </div>
               </ResizablePanel>
             </ResizablePanelGroup>
