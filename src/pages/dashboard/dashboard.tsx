@@ -29,6 +29,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { DashboardConfig } from "@/types/dashboard";
+import { DashboardConfigDialog } from "@/components/dashboard/config-dialog";
 
 const activityIcons: Record<
   | "task_created"
@@ -185,6 +187,18 @@ export default function DashboardPage() {
           };
     }
   );
+  const [config, setConfig] = useState<DashboardConfig>({
+    userId: 1,
+    layout: "grid",
+    widgets: [
+      { id: "1", type: "activeSprint", position: 0, visible: true },
+      { id: "2", type: "projectSummary", position: 1, visible: true },
+      { id: "3", type: "tasksByStatus", position: 2, visible: true },
+      { id: "4", type: "teamPerformance", position: 3, visible: true },
+    ],
+  });
+
+  const [configOpen, setConfigOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -193,6 +207,62 @@ export default function DashboardPage() {
   useEffect(() => {
     localStorage.setItem("dashboardWidgets", JSON.stringify(widgetVisibility));
   }, [widgetVisibility]);
+
+  useEffect(() => {
+    // Cargar configuración del usuario
+    const loadConfig = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No hay token de autenticación");
+          return;
+        }
+
+        const response = await fetch(
+          "http://localhost:5000/api/dashboard/config",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.message || `HTTP error! status: ${response.status}`
+          );
+        }
+
+        const data = await response.json();
+        console.log("Dashboard config loaded:", data); // Para debug
+        setConfig(data);
+      } catch (error) {
+        console.error("Error loading dashboard config:", error);
+        // Usar configuración por defecto en caso de error
+        setConfig({
+          userId: 1,
+          layout: "grid",
+          widgets: [
+            {
+              id: "default-1",
+              type: "activeSprint",
+              position: 0,
+              visible: true,
+            },
+            {
+              id: "default-2",
+              type: "projectSummary",
+              position: 1,
+              visible: true,
+            },
+          ],
+        });
+      }
+    };
+    loadConfig();
+  }, []);
 
   const fetchDashboardStats = async () => {
     try {
@@ -216,6 +286,51 @@ export default function DashboardPage() {
       console.error("Error fetching dashboard stats:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveConfig = async (newConfig: DashboardConfig) => {
+    try {
+      await fetch("http://localhost:5000/api/dashboard/config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(newConfig),
+      });
+
+      setConfig(newConfig);
+      // Actualizar visibilidad de widgets basado en la nueva configuración
+      setWidgetVisibility((prev) => ({
+        ...prev,
+        mainStats:
+          newConfig.widgets.find((w) => w.type === "mainStats")?.visible ??
+          true,
+        userStats:
+          newConfig.widgets.find((w) => w.type === "userStats")?.visible ??
+          true,
+        topPerformers:
+          newConfig.widgets.find((w) => w.type === "topPerformers")?.visible ??
+          true,
+        teamPerformance:
+          newConfig.widgets.find((w) => w.type === "teamPerformance")
+            ?.visible ?? true,
+        tasksByStatus:
+          newConfig.widgets.find((w) => w.type === "tasksByStatus")?.visible ??
+          true,
+        activeSprint:
+          newConfig.widgets.find((w) => w.type === "activeSprint")?.visible ??
+          true,
+        projectSummary:
+          newConfig.widgets.find((w) => w.type === "projectSummary")?.visible ??
+          true,
+        recentActivity:
+          newConfig.widgets.find((w) => w.type === "recentActivity")?.visible ??
+          true,
+      }));
+    } catch (error) {
+      console.error("Error saving dashboard config:", error);
     }
   };
 
@@ -523,8 +638,8 @@ export default function DashboardPage() {
               Estado Global de Tareas
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {stats.tasksByStatus.map((status) => (
-                <Card key={status.status} className="p-4">
+              {stats.tasksByStatus.map((status, index) => (
+                <Card key={`status-${status.status}-${index}`} className="p-4">
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span
@@ -629,37 +744,41 @@ export default function DashboardPage() {
         {/* Sprint Activo y Proyectos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Sprint Activo */}
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Sprint Activo</h2>
-            {stats.activeSprint ? (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <p className="font-medium">{stats.activeSprint.name}</p>
-                  <Badge variant="outline">
-                    Finaliza:{" "}
-                    {new Date(stats.activeSprint.endDate).toLocaleDateString()}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progreso</span>
-                    <span>{Math.round(stats.activeSprint.progress)}%</span>
+          {widgetVisibility.activeSprint && (
+            <Card key="active-sprint" className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Sprint Activo</h2>
+              {stats.activeSprint ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <p className="font-medium">{stats.activeSprint.name}</p>
+                    <Badge variant="outline">
+                      Finaliza:{" "}
+                      {new Date(
+                        stats.activeSprint.endDate
+                      ).toLocaleDateString()}
+                    </Badge>
                   </div>
-                  <Progress value={Math.round(stats.activeSprint.progress)} />
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Progreso</span>
+                      <span>{Math.round(stats.activeSprint.progress)}%</span>
+                    </div>
+                    <Progress value={Math.round(stats.activeSprint.progress)} />
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <p className="text-muted-foreground">No hay sprint activo</p>
-            )}
-          </Card>
+              ) : (
+                <p className="text-muted-foreground">No hay sprint activo</p>
+              )}
+            </Card>
+          )}
 
           {/* Resumen de Proyectos */}
           {widgetVisibility.projectSummary && (
-            <Card className="p-6">
+            <Card key="project-summary" className="p-6">
               <h2 className="text-xl font-semibold mb-4">Proyectos</h2>
               <div className="space-y-4">
                 {stats.projectSummary.map((project) => (
-                  <div key={project.id} className="space-y-2">
+                  <div key={`project-${project.id}`} className="space-y-2">
                     <div className="flex justify-between items-center">
                       <p className="font-medium">{project.name}</p>
                       <span className="text-sm text-muted-foreground">
@@ -676,15 +795,18 @@ export default function DashboardPage() {
 
         {/* Actividad Reciente */}
         {widgetVisibility.recentActivity && (
-          <Card className="p-6">
+          <Card key="recent-activity" className="p-6">
             <h2 className="text-xl font-semibold mb-6">Actividad Reciente</h2>
             <div className="relative">
               {/* Línea vertical del timeline */}
               <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-muted" />
 
               <div className="space-y-6">
-                {stats.recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex gap-4 relative">
+                {stats.recentActivity.map((activity, index) => (
+                  <div
+                    key={`activity-${activity.id}-${index}`}
+                    className="flex gap-4 relative"
+                  >
                     {/* Círculo indicador */}
                     <div className="w-8 h-8 rounded-full bg-background border-2 border-muted flex items-center justify-center relative z-10">
                       {activityIcons[
@@ -718,6 +840,12 @@ export default function DashboardPage() {
             </div>
           </Card>
         )}
+        <DashboardConfigDialog
+          open={configOpen}
+          onOpenChange={setConfigOpen}
+          config={config}
+          onSave={saveConfig}
+        />
       </div>
     </DefaultLayout>
   );
