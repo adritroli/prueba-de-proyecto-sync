@@ -45,6 +45,8 @@ import {
 import { PasswordDetailsSheet } from "@/components/password/password-details-sheet";
 
 export default function PaginaPruebas() {
+  // Añadir nuevo estado para selección múltiple
+  const [selectedPasswords, setSelectedPasswords] = useState<string[]>([]);
   const [passwords, setPasswords] = useState<PasswordEntry[]>([]);
   const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>(
     {}
@@ -63,7 +65,7 @@ export default function PaginaPruebas() {
     password: "",
     url: "",
     notes: "",
-    folder_id: "",
+    folder_id: "none", // Cambiado de "" a "none"
     favorite: false,
   });
   const [selectedFolder, setSelectedFolder] = useState<string>("all");
@@ -114,9 +116,16 @@ export default function PaginaPruebas() {
   const fetchPasswords = async () => {
     try {
       let url = "http://localhost:5000/api/passwords";
-      if (selectedFolder !== "all") {
+
+      // Agregar el parámetro folder_id para los filtros especiales
+      if (selectedFolder === "favorites") {
+        url += "?folder_id=favorites";
+      } else if (selectedFolder === "trash") {
+        url += "?folder_id=trash";
+      } else if (selectedFolder !== "all") {
         url += `?folder_id=${selectedFolder}`;
       }
+
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`, // Asume que tienes el token guardado
@@ -163,7 +172,7 @@ export default function PaginaPruebas() {
         },
         body: JSON.stringify({
           ...newEntry,
-          folder_id: selectedFolder !== "all" ? selectedFolder : null,
+          folder_id: newEntry.folder_id === "none" ? null : newEntry.folder_id,
         }),
       });
 
@@ -175,7 +184,7 @@ export default function PaginaPruebas() {
         password: "",
         url: "",
         notes: "",
-        folder_id: "",
+        folder_id: "none", // Cambiado de "" a "none"
         favorite: false,
       });
 
@@ -248,6 +257,46 @@ export default function PaginaPruebas() {
     } catch (error) {
       console.error("Error deleting password:", error);
       toast.error("Error al eliminar la contraseña");
+    }
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedPasswords(filteredPasswords.map((p) => p.id));
+    } else {
+      setSelectedPasswords([]);
+    }
+  };
+
+  const handleSelectPassword = (id: string) => {
+    setSelectedPasswords((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
+
+  const assignFolderToSelected = async (folderId: string) => {
+    try {
+      await Promise.all(
+        selectedPasswords.map((passwordId) =>
+          fetch(`http://localhost:5000/api/passwords/${passwordId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({
+              folder_id: folderId === "none" ? null : folderId,
+            }),
+          })
+        )
+      );
+
+      fetchPasswords();
+      setSelectedPasswords([]);
+      toast.success("Carpetas actualizadas exitosamente");
+    } catch (error) {
+      console.error("Error updating folders:", error);
+      toast.error("Error al actualizar las carpetas");
     }
   };
 
@@ -370,15 +419,43 @@ export default function PaginaPruebas() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={
+                              selectedPasswords.length ===
+                              filteredPasswords.length
+                            }
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedPasswords(
+                                  filteredPasswords.map((p) => p.id)
+                                );
+                              } else {
+                                setSelectedPasswords([]);
+                              }
+                            }}
+                            aria-label="Select all"
+                          />
+                        </TableHead>
                         <TableHead>Título</TableHead>
                         <TableHead>Usuario</TableHead>
                         <TableHead>URL</TableHead>
+                        <TableHead>Favorito</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredPasswords.map((entry) => (
                         <TableRow key={entry.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedPasswords.includes(entry.id)}
+                              onCheckedChange={() =>
+                                handleSelectPassword(entry.id)
+                              }
+                              aria-label={`Select ${entry.title}`}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">
                             {entry.title}
                           </TableCell>
@@ -394,6 +471,22 @@ export default function PaginaPruebas() {
                                 {entry.url}
                               </a>
                             )}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleFavorite(entry.id)}
+                              className={
+                                entry.favorite ? "text-yellow-400" : ""
+                              }
+                            >
+                              <Star
+                                className={`h-4 w-4 ${
+                                  entry.favorite ? "fill-yellow-400" : ""
+                                }`}
+                              />
+                            </Button>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
@@ -492,7 +585,8 @@ export default function PaginaPruebas() {
                       <SelectValue placeholder="Seleccionar carpeta" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sin carpeta</SelectItem>
+                      <SelectItem value="none">Sin carpeta</SelectItem>{" "}
+                      {/* Cambiado de value="" a "none" */}
                       {folders.map((folder) => (
                         <SelectItem key={folder.id} value={folder.id}>
                           {folder.name}
@@ -608,6 +702,30 @@ export default function PaginaPruebas() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Agregar botón de acción en masa */}
+        {selectedPasswords.length > 0 && (
+          <div className="fixed bottom-4 right-4 bg-background border rounded-lg shadow-lg p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">
+                {selectedPasswords.length} elementos seleccionados
+              </span>
+              <Select onValueChange={assignFolderToSelected}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Mover a carpeta..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin carpeta</SelectItem>
+                  {folders.map((folder) => (
+                    <SelectItem key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         <PasswordDetailsSheet
           password={selectedPassword}

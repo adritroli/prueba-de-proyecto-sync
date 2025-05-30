@@ -23,14 +23,24 @@ export const getPasswords = async (req: Request, res: Response) => {
     
     let query = `
       SELECT * FROM password_entries 
-      WHERE user_id = ? AND deleted = FALSE
+      WHERE user_id = ?
     `;
     
-    if (folderId) {
-      query += ' AND folder_id = ?';
+    const params: any[] = [userId];
+
+    // Manejar filtros especiales
+    if (folderId === 'favorites') {
+      query += ' AND favorite = TRUE AND deleted = FALSE';
+    } else if (folderId === 'trash') {
+      query += ' AND deleted = TRUE';
+    } else if (folderId) {
+      query += ' AND folder_id = ? AND deleted = FALSE';
+      params.push(folderId);
+    } else {
+      query += ' AND deleted = FALSE';
     }
     
-    const [passwords] = await connection.query(query, [userId, folderId].filter(Boolean));
+    const [passwords] = await connection.query(query, params);
     
     res.json(passwords);
   } catch (error) {
@@ -69,15 +79,24 @@ export const updatePassword = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
-    const { title, username, password, url, notes, folder_id } = req.body;
-
-    await connection.query(
-      `UPDATE password_entries 
-       SET title = ?, username = ?, password = ?, 
-           url = ?, notes = ?, folder_id = ?
-       WHERE id = ? AND user_id = ?`,
-      [title, username, password, url, notes, folder_id, id, userId]
-    );
+    
+    // Si solo se está actualizando folder_id, hacer una actualización específica
+    if (Object.keys(req.body).length === 1 && 'folder_id' in req.body) {
+      await connection.query(
+        'UPDATE password_entries SET folder_id = ? WHERE id = ? AND user_id = ?',
+        [req.body.folder_id, id, userId]
+      );
+    } else {
+      // Si es una actualización completa, usar todos los campos
+      const { title, username, password, url, notes, folder_id } = req.body;
+      await connection.query(
+        `UPDATE password_entries 
+         SET title = ?, username = ?, password = ?, 
+             url = ?, notes = ?, folder_id = ?
+         WHERE id = ? AND user_id = ?`,
+        [title, username, password, url, notes, folder_id, id, userId]
+      );
+    }
 
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
