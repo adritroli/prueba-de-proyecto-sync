@@ -1,14 +1,18 @@
-import DefaultLayout from "@/config/layout"
+"use client";
 
+import DefaultLayout from "@/config/layout";
+import { Toaster, toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
 
 export default function CalendarPage() {
- 
-
   return (
     <DefaultLayout>
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">Calendario</h1>
-        <p className="text-gray-700">Aquí puedes gestionar tus tareas y eventos.</p>
+      <div>
+        <Toaster position="top-right" richColors />
+        <Button onClick={() => toast.error("My first toast")}>
+          Give me a toast
+        </Button>
       </div>
     </DefaultLayout>
   );

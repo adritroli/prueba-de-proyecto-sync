@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import "@/styles/passManager.css";
 import {
   Select,
   SelectContent,
@@ -40,7 +41,7 @@ import {
   Share, // Agregar esta importación
   Users, // También necesario para el ícono de "Compartidas conmigo"
 } from "lucide-react";
-import { toast } from "sonner";
+import { Toaster, toast } from "sonner";
 import { X } from "lucide-react";
 import {
   ResizableHandle,
@@ -48,6 +49,25 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { PasswordDetailsSheet } from "@/components/password/password-details-sheet";
+import { Pencil } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 
 export default function PaginaPruebas() {
   // Añadir nuevo estado para selección múltiple
@@ -79,6 +99,9 @@ export default function PaginaPruebas() {
   const [selectedPassword, setSelectedPassword] =
     useState<PasswordEntry | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
+  const [deletingFolder, setDeletingFolder] = useState<string | null>(null);
 
   const filteredPasswords = passwords.filter((password) => {
     if (selectedFolder === "shared_by_me") {
@@ -227,6 +250,17 @@ export default function PaginaPruebas() {
 
   const addFolder = async (name: string) => {
     try {
+      if (!name.trim()) {
+        toast.error("El nombre de la carpeta no puede estar vacío", {
+          description: "Por favor ingrese un nombre válido",
+          action: {
+            label: "Entendido",
+            onClick: () => setNewFolderInput(false),
+          },
+        });
+        return;
+      }
+
       const response = await fetch(
         "http://localhost:5000/api/passwords/folders",
         {
@@ -247,12 +281,19 @@ export default function PaginaPruebas() {
       const data = await response.json();
       setFolders((prev) => [...prev, { id: data.id, name: data.name }]);
       setNewFolderInput(false);
-      toast.success("Carpeta creada exitosamente");
+      toast.success("Carpeta creada exitosamente", {
+        description: "Ya puede agregar contraseñas a esta carpeta",
+        action: {
+          label: "Entendido",
+          onClick: () => console.log("Toast cerrado"),
+        },
+      });
     } catch (error) {
       console.error("Error creating folder:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Error al crear la carpeta"
-      );
+      toast.error("Error al crear la carpeta", {
+        description:
+          error instanceof Error ? error.message : "Inténtelo de nuevo",
+      });
     }
   };
 
@@ -494,12 +535,81 @@ export default function PaginaPruebas() {
     }
   };
 
+  const handleEditFolder = async (folderId: string, newName: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/passwords/folders/${folderId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ name: newName }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al actualizar la carpeta");
+      }
+
+      fetchFolders();
+      setEditingFolder(null);
+      toast.success("Carpeta actualizada exitosamente");
+    } catch (error) {
+      console.error("Error updating folder:", error);
+      toast.error("Error al actualizar la carpeta");
+    }
+  };
+
+  const handleDeleteFolder = async (folderId: string) => {
+    try {
+      document.body.style.pointerEvents = ""; // Restaurar pointer-events antes de la operación
+      const response = await fetch(
+        `http://localhost:5000/api/passwords/folders/${folderId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al eliminar la carpeta");
+      }
+
+      if (selectedFolder === folderId) {
+        setSelectedFolder("all");
+      }
+
+      fetchFolders();
+      toast.success("Carpeta eliminada exitosamente", {
+        description: "Las contraseñas se han movido a 'Todas'",
+        action: {
+          label: "Entendido",
+          onClick: () => console.log("Toast cerrado"),
+        },
+      });
+    } catch (error) {
+      console.error("Error deleting folder:", error);
+      toast.error("Error al eliminar la carpeta", {
+        description: "Por favor inténtelo de nuevo",
+      });
+    } finally {
+      setDeletingFolder(null);
+      document.body.style.pointerEvents = ""; // Asegurar que pointer-events se restaure
+    }
+  };
+
+  // Modificar el renderizado de las carpetas en el sidebar
   return (
     <DefaultLayout>
-      <div className="container mx-auto p-6 space-y-6">
+      <Toaster position="top-right" richColors />
+      <div className="container mx-auto p-3 space-y-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Gestor de Contraseñas</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Gestiona tus contraseñas de forma segura
           </p>
         </div>
@@ -518,7 +628,7 @@ export default function PaginaPruebas() {
             >
               {/* Sidebar */}
               <ResizablePanel defaultSize={25} minSize={20} maxSize={30}>
-                <div className="flex flex-col h-full p-4 space-y-4">
+                <div className="flex flex-col h-full p-4  space-y-3">
                   <div className="space-y-2">
                     <Button
                       variant="ghost"
@@ -588,35 +698,70 @@ export default function PaginaPruebas() {
                       </div>
                     )}
                     {folders.map((folder) => (
-                      <Button
+                      <div
                         key={folder.id}
+                        className="flex items-center justify-between group"
+                      >
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-between boton-carpetas"
+                          onClick={() => setSelectedFolder(folder.id)}
+                        >
+                          <div className="flex items-center">
+                            <Folder className="mr-2 h-4 w-4" />
+                            {folder.name}
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEditingFolder(folder.id);
+                                  setEditingFolderName(folder.name);
+                                }}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar nombre
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => setDeletingFolder(folder.id)}
+                              >
+                                <Trash className="mr-2 h-4 w-4" />
+                                Eliminar carpeta
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </Button>
+                      </div>
+                    ))}
+
+                    <div className="mt-auto space-y-2">
+                      <Button
                         variant="ghost"
                         className="w-full justify-start"
-                        onClick={() => setSelectedFolder(folder.id)}
+                        onClick={() => setSelectedFolder("archived")}
                       >
-                        <Folder className="mr-2 h-4 w-4" />
-                        {folder.name}
+                        <Archive className="mr-2 h-4 w-4" />
+                        Archivadas
                       </Button>
-                    ))}
-                  </div>
-
-                  <div className="mt-auto space-y-2">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => setSelectedFolder("archived")}
-                    >
-                      <Archive className="mr-2 h-4 w-4" />
-                      Archivadas
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => setSelectedFolder("trash")}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Papelera
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => setSelectedFolder("trash")}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Papelera
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </ResizablePanel>
@@ -901,6 +1046,85 @@ export default function PaginaPruebas() {
           onDelete={deletePassword}
           onToggleFavorite={toggleFavorite}
         />
+
+        <AlertDialog
+          open={!!deletingFolder}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeletingFolder(null);
+              document.body.style.pointerEvents = ""; // Restaurar pointer-events al cerrar
+            }
+          }}
+        >
+          <AlertDialogContent
+            onCloseAutoFocus={() => {
+              document.body.style.pointerEvents = ""; // Restaurar pointer-events al cerrar con Escape
+            }}
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción eliminará la carpeta y todas las contraseñas dentro
+                de ella pasarán a "Todas".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => {
+                  setDeletingFolder(null);
+                  document.body.style.pointerEvents = ""; // Restaurar pointer-events al cancelar
+                }}
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (deletingFolder) {
+                    await handleDeleteFolder(deletingFolder);
+                  }
+                }}
+                className="bg-red-500 hover:bg-red-600"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {editingFolder && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="w-[300px] p-4">
+              <h3 className="font-semibold mb-4">Editar carpeta</h3>
+              <Input
+                value={editingFolderName}
+                onChange={(e) => setEditingFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && editingFolderName.trim()) {
+                    handleEditFolder(editingFolder, editingFolderName);
+                  }
+                }}
+                autoFocus
+              />
+              <div className="flex justify-end gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingFolder(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (editingFolderName.trim()) {
+                      handleEditFolder(editingFolder, editingFolderName);
+                    }
+                  }}
+                >
+                  Guardar
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </DefaultLayout>
   );

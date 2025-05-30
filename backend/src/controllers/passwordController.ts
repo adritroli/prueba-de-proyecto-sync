@@ -254,7 +254,7 @@ export const toggleFavorite = async (req: Request, res: Response) => {
   }
 }
 
-  export const updateFolder = async (req: Request, res: Response) =>{
+  export const updateFolder = async (req: Request, res: Response) => {
     const connection = await pool.getConnection();
     try {
       const userId = req.user?.id;
@@ -274,12 +274,19 @@ export const toggleFavorite = async (req: Request, res: Response) => {
     }
   }
 
-   export const deleteFolder= async(req: Request, res: Response)=> {
+   export const deleteFolder = async (req: Request, res: Response) => {
     const connection = await pool.getConnection();
     try {
       const userId = req.user?.id;
       const { id } = req.params;
 
+      // Primero, actualizar todas las contraseñas de la carpeta a folder_id = NULL
+      await connection.query(
+        'UPDATE password_entries SET folder_id = NULL WHERE folder_id = ? AND user_id = ?',
+        [id, userId]
+      );
+
+      // Luego, eliminar la carpeta
       await connection.query(
         'DELETE FROM password_folders WHERE id = ? AND user_id = ?',
         [id, userId]
