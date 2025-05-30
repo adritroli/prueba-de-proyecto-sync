@@ -7,9 +7,20 @@ import {
 import { PasswordEntry } from "@/types/password";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Eye, EyeOff, Save, Trash, Users } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import {
+  Eye,
+  EyeOff,
+  Save,
+  Trash,
+  Users,
+  Copy,
+  Pencil,
+  Share2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SharePasswordDialog } from "@/components/password/share-password-dialog";
+import { toast } from "sonner";
 
 interface PasswordDetailsSheetProps {
   password: PasswordEntry | null;
@@ -46,139 +57,199 @@ export function PasswordDetailsSheet({
     }
   };
 
+  const handleCopyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${type} copiado al portapapeles`);
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Detalles de la contraseña</SheetTitle>
-          </SheetHeader>
-          {password && (
-            <div className="space-y-4 mt-4">
-              {password.share_type === "shared_with_me" && (
-                <div className="bg-muted p-2 rounded text-sm">
-                  Esta contraseña fue compartida contigo. Solo puedes verla.
-                </div>
-              )}
-
-              {/* Campos de la contraseña */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Título</label>
-                  <Input
-                    value={
-                      isEditing
-                        ? editedData.title || password.title
-                        : password.title
-                    }
-                    onChange={(e) =>
-                      setEditedData({ ...editedData, title: e.target.value })
-                    }
-                    disabled={!isOwner || !isEditing}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Usuario</label>
-                  <Input
-                    value={
-                      isEditing
-                        ? editedData.username || password.username
-                        : password.username
-                    }
-                    onChange={(e) =>
-                      setEditedData({ ...editedData, username: e.target.value })
-                    }
-                    disabled={!isOwner || !isEditing}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">URL</label>
-                  <Input
-                    value={
-                      isEditing ? editedData.url || password.url : password.url
-                    }
-                    onChange={(e) =>
-                      setEditedData({ ...editedData, url: e.target.value })
-                    }
-                    disabled={!isOwner || !isEditing}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Contraseña</label>
+        <SheetContent className="p-0 ">
+          <Card className="w-full h-full  overflow-y-auto p-4 space-y-2">
+            <SheetHeader className="mt-5">
+              <div className="flex justify-between items-center">
+                <SheetTitle>Detalles de la contraseña</SheetTitle>
+                {isOwner && !isEditing && (
                   <div className="flex gap-2">
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      value={password.password}
-                      readOnly
-                    />
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={() => setIsEditing(true)}
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowShareDialog(true)}
+                    >
+                      <Share2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onDelete(password!.id)}
+                      className="hover:text-red-500"
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </SheetHeader>
+            {password && (
+              <div className="space-y-4 mt-4">
+                {password.share_type === "shared_with_me" && (
+                  <div className="bg-muted p-2 rounded text-sm">
+                    Esta contraseña fue compartida contigo. Solo puedes verla.
+                  </div>
+                )}
+
+                {/* Campos de la contraseña */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Título</label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={
+                          isEditing
+                            ? editedData.title || password.title
+                            : password.title
+                        }
+                        onChange={(e) =>
+                          setEditedData({
+                            ...editedData,
+                            title: e.target.value,
+                          })
+                        }
+                        disabled={!isOwner || !isEditing}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10"
+                        onClick={() =>
+                          handleCopyToClipboard(password.title, "Título")
+                        }
+                      >
+                        <Copy className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Usuario</label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={
+                          isEditing
+                            ? editedData.username || password.username
+                            : password.username
+                        }
+                        onChange={(e) =>
+                          setEditedData({
+                            ...editedData,
+                            username: e.target.value,
+                          })
+                        }
+                        disabled={!isOwner || !isEditing}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10"
+                        onClick={() =>
+                          handleCopyToClipboard(password.username, "Usuario")
+                        }
+                      >
+                        <Copy className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Contraseña</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        value={password.password}
+                        readOnly
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10"
+                        onClick={() =>
+                          handleCopyToClipboard(password.password, "Contraseña")
+                        }
+                      >
+                        <Copy className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">URL</label>
+                    <Input
+                      value={
+                        isEditing
+                          ? editedData.url || password.url
+                          : password.url
+                      }
+                      onChange={(e) =>
+                        setEditedData({ ...editedData, url: e.target.value })
+                      }
+                      disabled={!isOwner || !isEditing}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Notas</label>
+                    <Input
+                      value={
+                        isEditing
+                          ? editedData.notes || password.notes
+                          : password.notes
+                      }
+                      onChange={(e) =>
+                        setEditedData({ ...editedData, notes: e.target.value })
+                      }
+                      disabled={!isOwner || !isEditing}
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Notas</label>
-                  <Input
-                    value={
-                      isEditing
-                        ? editedData.notes || password.notes
-                        : password.notes
-                    }
-                    onChange={(e) =>
-                      setEditedData({ ...editedData, notes: e.target.value })
-                    }
-                    disabled={!isOwner || !isEditing}
-                  />
-                </div>
-              </div>
-
-              {/* Botones de acción */}
-              <div className="flex justify-end gap-2 pt-4">
-                {isOwner && (
-                  <>
-                    {isEditing ? (
-                      <Button onClick={handleSave}>
-                        <Save className="h-4 w-4 mr-2" />
-                        Guardar
-                      </Button>
-                    ) : (
-                      <>
-                        <Button onClick={() => setIsEditing(true)}>
-                          Editar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setShowShareDialog(true)}
-                        >
-                          <Users className="h-4 w-4 mr-2" />
-                          Compartir
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => onDelete(password.id)}
-                        >
-                          <Trash className="h-4 w-4 mr-2" />
-                          Eliminar
-                        </Button>
-                      </>
-                    )}
-                  </>
+                {/* Botones de acción */}
+                {isEditing && (
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditing(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSave}>
+                      <Save className="h-4 w-4 mr-2" />
+                      Guardar
+                    </Button>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
+          </Card>
         </SheetContent>
       </Sheet>
 
