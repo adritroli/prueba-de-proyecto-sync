@@ -19,6 +19,8 @@ import { NavMain } from "@/components/nav-main";
 import { NavProjects } from "@/components/nav-projects";
 import { NavUser } from "@/components/nav-user";
 import { TeamSwitcher } from "@/components/team-switcher";
+import { RiLockPasswordFill } from "react-icons/ri";
+
 import {
   Sidebar,
   SidebarContent,
@@ -161,6 +163,17 @@ const data = {
         {
           title: "Prueba de Portal",
           url: "/portalClaim",
+        },
+      ],
+    },
+    {
+      title: "Passwords",
+      url: "#",
+      icon: RiLockPasswordFill,
+      items: [
+        {
+          title: "Password Management",
+          url: "/passwordManager",
         },
       ],
     },

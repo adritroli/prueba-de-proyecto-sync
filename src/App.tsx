@@ -27,6 +27,7 @@ import CalendarPage from "./pages/calendar/calendar";
 import PaginaPruebasPage from "./pages/pruebas/paginaPruebas";
 import RolesPermisosPage from "./pages/roles/roles";
 import SearchTaskPage from "./pages/backlog/searchTasks";
+import PasswordManagerPage from "./pages/password/passManager";
 
 const router = createBrowserRouter([
   {
@@ -46,6 +47,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <PaginaPruebasPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/passwordManager",
+    element: (
+      <ProtectedRoute>
+        <PasswordManagerPage />
       </ProtectedRoute>
     ),
   },

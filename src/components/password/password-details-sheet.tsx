@@ -65,8 +65,8 @@ export function PasswordDetailsSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="p-0 ">
-          <Card className="w-full h-full  overflow-y-auto p-4 space-y-2">
+        <SheetContent className="p-0">
+          <Card className="w-full h-full overflow-y-auto p-4 space-y-2 flex flex-col">
             <SheetHeader className="mt-5">
               <div className="flex justify-between items-center">
                 <SheetTitle>Detalles de la contraseña</SheetTitle>
@@ -98,16 +98,18 @@ export function PasswordDetailsSheet({
                 )}
               </div>
             </SheetHeader>
+
             {password && (
-              <div className="space-y-4 mt-4">
+              <div className="flex flex-col flex-1">
+                {/* Mensaje de contraseña compartida */}
                 {password.share_type === "shared_with_me" && (
                   <div className="bg-muted p-2 rounded text-sm">
                     Esta contraseña fue compartida contigo. Solo puedes verla.
                   </div>
                 )}
 
-                {/* Campos de la contraseña */}
-                <div className="space-y-4">
+                {/* Campos principales */}
+                <div className="space-y-4 flex-1">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Título</label>
                     <div className="flex gap-2">
@@ -230,23 +232,43 @@ export function PasswordDetailsSheet({
                       disabled={!isOwner || !isEditing}
                     />
                   </div>
+
+                  {/* Botones de acción para edición */}
+                  {isEditing && (
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsEditing(false)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleSave}>
+                        <Save className="h-4 w-4 mr-2" />
+                        Guardar
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Botones de acción */}
-                {isEditing && (
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsEditing(false)}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleSave}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Guardar
-                    </Button>
+                {/* Fechas al final */}
+                <div className="pt-4 mt-auto border-t">
+                  <div className="flex flex-col space-y-4 text-sm">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>Creado:</span>
+                      <span>
+                        {new Date(password.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    {password.updated_at && (
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Última modificación:</span>
+                        <span>
+                          {new Date(password.updated_at).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             )}
           </Card>
