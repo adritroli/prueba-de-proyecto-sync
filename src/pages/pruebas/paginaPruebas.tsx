@@ -632,7 +632,11 @@ export default function PaginaPruebas() {
                   <div className="space-y-2">
                     <Button
                       variant="ghost"
-                      className="w-full justify-start"
+                      className={`w-full justify-start ${
+                        selectedFolder === "all"
+                          ? "bg-green-100/10 text-green-500"
+                          : ""
+                      }`}
                       onClick={() => setSelectedFolder("all")}
                     >
                       <Inbox className="mr-2 h-4 w-4" />
@@ -640,7 +644,11 @@ export default function PaginaPruebas() {
                     </Button>
                     <Button
                       variant="ghost"
-                      className="w-full justify-start"
+                      className={`w-full justify-start ${
+                        selectedFolder === "favorites"
+                          ? "bg-green-100/10 text-green-500"
+                          : ""
+                      }`}
                       onClick={() => setSelectedFolder("favorites")}
                     >
                       <Star className="mr-2 h-4 w-4" />
@@ -648,7 +656,11 @@ export default function PaginaPruebas() {
                     </Button>
                     <Button
                       variant="ghost"
-                      className="w-full justify-start"
+                      className={`w-full justify-start ${
+                        selectedFolder === "shared_by_me"
+                          ? "bg-green-100/10 text-green-500"
+                          : ""
+                      }`}
                       onClick={() => setSelectedFolder("shared_by_me")}
                     >
                       <Share className="mr-2 h-4 w-4" />
@@ -656,7 +668,11 @@ export default function PaginaPruebas() {
                     </Button>
                     <Button
                       variant="ghost"
-                      className="w-full justify-start"
+                      className={`w-full justify-start ${
+                        selectedFolder === "shared_with_me"
+                          ? "bg-green-100/10 text-green-500"
+                          : ""
+                      }`}
                       onClick={() => setSelectedFolder("shared_with_me")}
                     >
                       <Users className="mr-2 h-4 w-4" />
@@ -704,7 +720,11 @@ export default function PaginaPruebas() {
                       >
                         <Button
                           variant="ghost"
-                          className="w-full justify-between boton-carpetas"
+                          className={`w-full justify-between boton-carpetas ${
+                            selectedFolder === folder.id
+                              ? "bg-green-100/10 text-green-500"
+                              : ""
+                          }`}
                           onClick={() => setSelectedFolder(folder.id)}
                         >
                           <div className="flex items-center">
@@ -747,7 +767,11 @@ export default function PaginaPruebas() {
                     <div className="mt-auto space-y-2">
                       <Button
                         variant="ghost"
-                        className="w-full justify-start"
+                        className={`w-full justify-start ${
+                          selectedFolder === "archived"
+                            ? "bg-green-100/10 text-green-500"
+                            : ""
+                        }`}
                         onClick={() => setSelectedFolder("archived")}
                       >
                         <Archive className="mr-2 h-4 w-4" />
@@ -755,7 +779,11 @@ export default function PaginaPruebas() {
                       </Button>
                       <Button
                         variant="ghost"
-                        className="w-full justify-start"
+                        className={`w-full justify-start ${
+                          selectedFolder === "trash"
+                            ? "bg-red-100/10 text-green-500"
+                            : ""
+                        }`}
                         onClick={() => setSelectedFolder("trash")}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />

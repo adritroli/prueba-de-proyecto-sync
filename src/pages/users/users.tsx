@@ -254,10 +254,14 @@ export default function UsersPage() {
       <div className="flex flex-col gap-4">
         <div className="flex gap-4 items-center">
           <div className="relative flex-1">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search
+              className={`absolute left-2 top-2.5 h-4 w-4 ${
+                search ? "text-green-500" : "text-muted-foreground"
+              }`}
+            />
             <Input
               placeholder="Buscar usuarios..."
-              className="pl-8"
+              className={`pl-8 ${search ? "border-green-500" : ""}`}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -272,7 +276,11 @@ export default function UsersPage() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger
+              className={`w-[180px] ${
+                roleFilter !== "all" ? "border-green-500 text-green-500" : ""
+              }`}
+            >
               <SelectValue placeholder="Filtrar por rol" />
             </SelectTrigger>
             <SelectContent>
@@ -291,7 +299,11 @@ export default function UsersPage() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger
+              className={`w-[180px] ${
+                teamFilter !== "all" ? "border-green-500 text-green-500" : ""
+              }`}
+            >
               <SelectValue placeholder="Filtrar por equipo" />
             </SelectTrigger>
             <SelectContent>
@@ -310,7 +322,11 @@ export default function UsersPage() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger
+              className={`w-[180px] ${
+                statusFilter !== "all" ? "border-green-500 text-green-500" : ""
+              }`}
+            >
               <SelectValue placeholder="Filtrar por estado" />
             </SelectTrigger>
             <SelectContent>
