@@ -1,0 +1,20 @@
+.menu-notificaciones {
+  scrollbar-width: thin;
+  scrollbar-color: #7eef51 transparent;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.tarjeta-notificaciones {
+  display: block;
+}
+
+.trigger-notificaciones {
+  cursor: pointer;
+  border: solid 1px #262626;
+}

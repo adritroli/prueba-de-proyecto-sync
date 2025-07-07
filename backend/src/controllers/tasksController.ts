@@ -5,7 +5,7 @@ import { createNotification } from "./notificationsController";
 // Envuelve las llamadas await en una función async
 export async function sendTaskNotifications(assigneeId: string, taskTitle: string, newStatus: string) {
 	// Cuando se asigna una tarea:
-	await createNotification(Number(assigneeId), "task_assigned", `Se te ha asignado la tarea "${taskTitle}"`);
+	await createNotification(Number(assigneeId), "task_assigned", `Tarea asignada "${taskTitle}"`);
 
 	// Cuando cambia el estado:
 	await createNotification(Number(assigneeId), "task_status", `La tarea "${taskTitle}" cambió de estado a "${newStatus}"`);

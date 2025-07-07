@@ -440,7 +440,7 @@ export const createTask = async (req: Request, res: Response) => {
       await createNotification(
         assignee,
         "task_assigned",
-        `Se te ha asignado la tarea "${title}"`
+        `Tarea asignada: "${title}"`
       );
     }
     res.status(201).json(newTask[0]);
@@ -475,6 +475,7 @@ export const updateTask = async (req: Request, res: Response) => {
       [id]
     );
     const oldAssignee = oldTaskRows[0]?.assignee;
+    const oldTitle = oldTaskRows[0]?.title;
 
     // Actualizar la tarea
     await connection.query(
@@ -504,15 +505,15 @@ export const updateTask = async (req: Request, res: Response) => {
       ]
     );
 
-    await connection.commit();
-    // Notificar si el asignado cambió y hay nuevo asignado
+    // Si se cambió el asignado y hay un nuevo asignado, crear notificación
     if (updates.assignee && updates.assignee !== oldAssignee) {
       await createNotification(
         updates.assignee,
-        "task_assigned",
-        `Se te ha asignado la tarea "${updates.title}"`
+        'TASK_ASSIGNED',
+        `Tarea asignada: ${updates.title || oldTitle}`
       );
     }
+
     // Obtener la tarea actualizada
     const [updatedTaskRows] = await connection.query<RowDataPacket[]>(
       'SELECT * FROM tasks WHERE id = ?',
@@ -735,6 +736,22 @@ export const updateTaskUser = async (req: Request, res: Response) => {
 
     const updateField = field === 'assignee' ? 'assignee' : 'created_by';
     
+    // Si es una asignación, obtener el título de la tarea primero
+    if (field === 'assignee') {
+      const [taskRows] = await connection.query<RowDataPacket[]>(
+        'SELECT title FROM tasks WHERE task_key = ?',
+        [taskKey]
+      );
+      const taskTitle = taskRows[0]?.title;
+
+      // Crear notificación para el nuevo asignado
+      await createNotification(
+        userId,
+        'TASK_ASSIGNED',
+        `Tarea asignada: ${taskTitle}`
+      );
+    }
+
     await connection.query(
       `UPDATE tasks SET ${updateField} = ? WHERE task_key = ?`,
       [userId, taskKey]
