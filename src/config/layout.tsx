@@ -1,4 +1,5 @@
 import React from "react";
+import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import "@/styles/layout.css";
 import { AppSidebar } from "@/components/app-sidebar";
 import {
@@ -62,6 +63,7 @@ export default  function DefaultLayout({
             </Breadcrumb>
           </div>
           <div className="ml-auto flex items-center gap-2 pr-4">
+            <NotificationsBell userId={parseInt(localStorage.getItem("userId") || "1")} />
             <ModeToggle />
           </div>
         </header>

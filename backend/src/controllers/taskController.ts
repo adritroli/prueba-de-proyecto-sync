@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { RequestHandler } from 'express';
 import { pool } from '../config/db';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { createNotification } from './notificationsController';
 
 interface TaskRow extends RowDataPacket {
   id: number;
@@ -29,7 +29,7 @@ export const getTasks = async (req: Request, res: Response) => {
       WHERE 1=1
     `;
 
-    const params: any[] = [];
+    const params: unknown[] = [];
     const conditions: string[] = [];
 
     // Manejar búsqueda
@@ -154,7 +154,7 @@ export const getSprints = async (req: Request, res: Response) => {
       ORDER BY start_date DESC
     `);
     res.json(rows);
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: 'Error al obtener sprints' });
   }
 };
@@ -273,6 +273,22 @@ export const updateTaskStatus = async (req: Request, res: Response) => {
       "UPDATE tasks SET status_id = ? WHERE id = ?",
       [status_id, id]
     );
+
+    // Notificación al cambiar el estado de la tarea
+    const [taskRow] = await connection.query<RowDataPacket[]>(
+      `SELECT t.title, t.assignee, ts.name as status_name
+       FROM tasks t
+       LEFT JOIN task_status ts ON t.status_id = ts.id
+       WHERE t.id = ?`,
+      [id]
+    );
+    if (taskRow.length > 0 && taskRow[0].assignee) {
+      await createNotification(
+        taskRow[0].assignee,
+        "task_status",
+        `La tarea "${taskRow[0].title}" cambió de estado a "${taskRow[0].status_name}"`
+      );
+    }
 
     await connection.commit();
     res.json({ message: "Task status updated successfully" });
@@ -419,6 +435,14 @@ export const createTask = async (req: Request, res: Response) => {
     `, [result.insertId]);
 
     await connection.commit();
+    // Notificar al usuario asignado si existe
+    if (assignee) {
+      await createNotification(
+        assignee,
+        "task_assigned",
+        `Se te ha asignado la tarea "${title}"`
+      );
+    }
     res.status(201).json(newTask[0]);
   } catch (error) {
     await connection.rollback();
@@ -444,6 +468,13 @@ export const updateTask = async (req: Request, res: Response) => {
     }
 
     await connection.beginTransaction();
+
+    // Obtener la tarea antes de actualizar para comparar el asignado
+    const [oldTaskRows] = await connection.query<RowDataPacket[]>(
+      'SELECT assignee, title FROM tasks WHERE id = ?',
+      [id]
+    );
+    const oldAssignee = oldTaskRows[0]?.assignee;
 
     // Actualizar la tarea
     await connection.query(
@@ -474,7 +505,14 @@ export const updateTask = async (req: Request, res: Response) => {
     );
 
     await connection.commit();
-    
+    // Notificar si el asignado cambió y hay nuevo asignado
+    if (updates.assignee && updates.assignee !== oldAssignee) {
+      await createNotification(
+        updates.assignee,
+        "task_assigned",
+        `Se te ha asignado la tarea "${updates.title}"`
+      );
+    }
     // Obtener la tarea actualizada
     const [updatedTaskRows] = await connection.query<RowDataPacket[]>(
       'SELECT * FROM tasks WHERE id = ?',
@@ -646,9 +684,9 @@ export const addTaskComment = async (req: Request, res: Response) => {
 
     await connection.beginTransaction();
 
-    // Obtener el ID de la tarea
+    // Obtener el ID de la tarea y el asignado
     const [tasks] = await connection.query<RowDataPacket[]>(
-      'SELECT id FROM tasks WHERE task_key = ?',
+      'SELECT id, assignee, title FROM tasks WHERE task_key = ?',
       [taskKey]
     );
 
@@ -658,12 +696,23 @@ export const addTaskComment = async (req: Request, res: Response) => {
     }
 
     const taskId = tasks[0].id;
+    const assignee = tasks[0].assignee;
+    const taskTitle = tasks[0].title;
 
     // Insertar el comentario
     await connection.query(
       'INSERT INTO task_comments (task_id, user_id, comment) VALUES (?, ?, ?)',
       [taskId, userId, comment]
     );
+
+    // Notificar al asignado si existe y no es el mismo que comenta
+    if (assignee && assignee !== userId) {
+      await createNotification(
+        assignee,
+        "task_comment",
+        `Nuevo comentario en la tarea "${taskTitle}"`
+      );
+    }
 
     await connection.commit();
     res.status(201).json({ message: 'Comentario agregado' });

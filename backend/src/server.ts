@@ -6,7 +6,7 @@ import logger from './utils/logger';
 import userRoutes from './routes/usersRoutes';
 import teamsRoutes from './routes/teamsRoutes';
 import projectRoutes from './routes/projectRoutes';
-import taskRoutes from './routes/taskRoutes';
+import tasksRoutes from './routes/tasksRoutes';
 import authRoutes from './routes/authRoutes';
 import KanbanBoardRoutes from './routes/kanbanBoardRoutes';
 import linkedTasksRoutes from './routes/linkedTasksRoutes';
@@ -20,6 +20,9 @@ import passwordRoutes from './routes/passwordRoutes';
 import dashboardConfigRoutes from './routes/dashboardConfig';
 import dashboardStatsRoutes from './routes/dashboardStats';
 import projectsRoutes from './routes/projects';
+import notificationsRoutes from "./routes/notifications";
+import taskRoutes from './routes/taskRoutes';
+
 
 
 const app = express();
@@ -43,8 +46,12 @@ app.use((req, _, next) => {
   next();
 });
 
+// Log para saber que el servidor está levantado y rutas cargadas
+console.log("Inicializando servidor Express...");
+console.log("Registrando rutas de notificaciones en /api/notifications");
+
 // Rutas API
-app.use('/api', taskRoutes);
+app.use('/api', tasksRoutes);
 app.use('/api', userRoutes);
 app.use('/api', projectRoutes);
 app.use('/api', sprintRoutes);
@@ -60,6 +67,11 @@ app.use('/api/passwords', passwordRoutes);
 app.use('/api/dashboard', dashboardConfigRoutes);
 app.use('/api/dashboard', dashboardStatsRoutes);
 app.use('/api/projects', projectsRoutes);
+app.use('/api/notifications', (req, res, next) => {
+  console.log("Entrando a ruta /api/notifications");
+  next();
+}, notificationsRoutes);
+app.use('/api', taskRoutes);
 
 
 // Error handling debe ser el último middleware

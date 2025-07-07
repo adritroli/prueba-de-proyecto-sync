@@ -1,43 +1,44 @@
-import express from "express";
-import {
-  getTasks,
-  getTask,
+import { Router } from 'express';
+import { RequestHandler } from 'express';
+import { 
+  getTasks, 
+  createTask, 
+  getSprints,
+  createSprint,
+  activateSprint,
+  completeSprint,
   updateTaskStatus,
-  updateTaskPriority,
-  updateTaskAssignedUser,
-  getUsers,
-  getPendingTasks,
-  getSprintTasks,
+  updateTask,
+  assignTasksToSprint,
+  removeFromSprint,
   getTaskStatuses,
-  newTask,
-  getComments,
+  getActiveSprint,
+  getTaskByKey,
+  getTaskComments,
   addTaskComment,
-  updateTaskComment,
-  deleteTaskComment,
   getTaskSLA,
-} from "../controllers/tasksController";
-import timeEntriesRoutes from "./timeEntriesRoutes";
+  updateTaskUser  
+} from '../controllers/taskController';
 
-const router = express.Router();
+const router = Router();
 
-router.get('/pending', getPendingTasks);
-router.get('/sprint', getSprintTasks);
-router.get("/tasks", getTasks);
-router.get("/tasks/:id", getTasks);
-router.get("/task/:id", getTask);
-router.get("/task-statuses", getTaskStatuses);
-router.get("/users", getUsers);
-router.get("/task/:id/comments", getComments);
-router.get("/task/:id/sla", getTaskSLA);
+router.get('/task', getTasks);
+router.post('/task', createTask);
+router.get('/sprints', getSprints);
+router.post('/sprints', createSprint);
+router.put('/sprints/:id/activate', activateSprint);
+router.put('/sprints/:id/complete', completeSprint);
+router.put('/task/:id/status', updateTaskStatus);
+router.put('/task/:id', updateTask);
+router.put('/tasks/assign-to-sprint', assignTasksToSprint);
+router.put('/tasks/:taskId/remove-from-sprint', removeFromSprint);
+router.get('/task-status', getTaskStatuses);
+router.get('/sprints/active', getActiveSprint);
 
-router.put("/tasks/:id/status", updateTaskStatus); // ✅ Ahora esta ruta existe
-router.put("/tasks/:id/priority", updateTaskPriority);
-router.put("/tasks/:id/assign", updateTaskAssignedUser);
-router.post("/tasks-newtask", newTask);
-router.post("/task/:id/comments", addTaskComment);
-router.put("/comments/:id", updateTaskComment);
-router.delete("/comments/:id", deleteTaskComment);
-
-router.use('/time-entries', timeEntriesRoutes); // Agregar esta línea
+router.get('/task/:taskKey', getTaskByKey as RequestHandler);
+router.get('/task/:taskKey/comments', getTaskComments as RequestHandler);
+router.post('/task/:taskKey/comments', addTaskComment as RequestHandler);
+router.get('/task/:taskId/sla', getTaskSLA as RequestHandler);
+router.put('/task/:taskKey/update-user', updateTaskUser);
 
 export default router;
