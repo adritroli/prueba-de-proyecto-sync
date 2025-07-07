@@ -260,3 +260,28 @@ export const getAvailableTeams = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error al obtener equipos' });
   }
 };
+
+// Obtener resumen de proyectos
+export const getProjectsSummary = async (req: Request, res: Response) => {
+  const connection = await pool.getConnection();
+  try {
+    const [projects] = await connection.query<RowDataPacket[]>(`
+      SELECT 
+        p.id,
+        p.name,
+        COUNT(t.id) as tasksCount,
+        SUM(CASE WHEN t.status_id = 3 THEN 1 ELSE 0 END) * 100.0 / COUNT(t.id) as progress
+      FROM projects p
+      LEFT JOIN tasks t ON t.project_id = p.id
+      GROUP BY p.id, p.name
+      ORDER BY p.name
+    `);
+
+    res.json(projects);
+  } catch (error) {
+    console.error('Error getting projects summary:', error);
+    res.status(500).json({ message: 'Error al obtener resumen de proyectos' });
+  } finally {
+    connection.release();
+  }
+};

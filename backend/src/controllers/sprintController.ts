@@ -116,14 +116,49 @@ export const createSprint = async (req: Request, res: Response) => {
 
 // Agregar endpoint para verificar sprint activo
 export const getActiveSprint = async (req: Request, res: Response) => {
+  const connection = await pool.getConnection();
   try {
-    const [sprint] = await pool.query<RowDataPacket[]>(
-      'SELECT id, name, status FROM sprints WHERE status = "active"'
-    );
+    const [sprint] = await connection.query<RowDataPacket[]>(`
+      SELECT 
+        s.id,
+        s.name,
+        s.start_date as startDate,
+        s.end_date as endDate,
+        s.goal,
+        COUNT(t.id) as totalTasks,
+        SUM(CASE WHEN ts.name = 'completed' THEN 1 ELSE 0 END) as completedTasks,
+        SUM(t.story_points) as totalStoryPoints,
+        SUM(CASE WHEN ts.name = 'completed' THEN t.story_points ELSE 0 END) as completedStoryPoints,
+        COUNT(DISTINCT t.assignee) as teamMembers,
+        SUM(CASE WHEN t.is_blocked = 1 THEN 1 ELSE 0 END) as blockedTasks,
+        DATEDIFF(s.end_date, CURDATE()) as daysRemaining,
+        ROUND(SUM(CASE WHEN ts.name = 'completed' THEN t.story_points ELSE 0 END) / 
+              GREATEST(DATEDIFF(CURDATE(), s.start_date), 1), 2) as velocity
+      FROM sprints s
+      LEFT JOIN tasks t ON t.sprint_id = s.id
+      LEFT JOIN task_status ts ON t.status_id = ts.id
+      WHERE s.status = 'active'
+      GROUP BY s.id
+    `);
 
-    res.json({ sprint: sprint[0] || null });
+    if (!sprint[0]) {
+      res.status(404).json({ message: 'No hay sprint activo' });
+      return;
+    }
+
+    // Calcular el progreso
+    const progress = sprint[0].totalTasks > 0
+      ? Math.round((sprint[0].completedTasks / sprint[0].totalTasks) * 100)
+      : 0;
+
+    res.json({
+      ...sprint[0],
+      progress
+    });
   } catch (error) {
-    console.error('Error checking active sprint:', error);
-    res.status(500).json({ message: 'Error al verificar sprint activo' });
+    console.error('Error obteniendo sprint activo:', error);
+    res.status(500).json({ message: 'Error al obtener sprint activo' });
+  } finally {
+    connection.release();
   }
 };

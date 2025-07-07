@@ -18,6 +18,8 @@ import path from 'path';
 import { errorMiddleware } from './middleware/performance';
 import passwordRoutes from './routes/passwordRoutes';
 import dashboardConfigRoutes from './routes/dashboardConfig';
+import dashboardStatsRoutes from './routes/dashboardStats';
+import projectsRoutes from './routes/projects';
 
 
 const app = express();
@@ -56,6 +58,8 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api', teamsRoutes);
 app.use('/api/passwords', passwordRoutes);
 app.use('/api/dashboard', dashboardConfigRoutes);
+app.use('/api/dashboard', dashboardStatsRoutes);
+app.use('/api/projects', projectsRoutes);
 
 
 // Error handling debe ser el último middleware

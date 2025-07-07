@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DashboardConfig } from "@/types/dashboard";
 import { DashboardConfigDialog } from "@/components/dashboard/config-dialog";
+import { TaskStatsChart } from "@/components/dashboard/task-stats-chart";
 
 const activityIcons: Record<
   | "task_created"
@@ -124,6 +125,12 @@ interface DashboardStats {
     completedSprints: number;
     activeSprints: number;
   };
+  monthlyStats: Array<{
+    month: string;
+    completadas: number;
+    pendientes: number;
+    urgentes: number;
+  }>;
 }
 
 interface WidgetVisibility {
@@ -168,6 +175,7 @@ export default function DashboardPage() {
     },
     activeSprintDetails: null,
     activeSprintTasks: [],
+    monthlyStats: [],
   });
   const [loading, setLoading] = useState(true);
   const [widgetVisibility, setWidgetVisibility] = useState<WidgetVisibility>(
@@ -212,53 +220,54 @@ export default function DashboardPage() {
     // Cargar configuración del usuario
     const loadConfig = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          console.error("No hay token de autenticación");
-          return;
-        }
-
         const response = await fetch(
           "http://localhost:5000/api/dashboard/config",
           {
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
               Accept: "application/json",
             },
           }
         );
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.message || `HTTP error! status: ${response.status}`
-          );
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
 
         const data = await response.json();
-        console.log("Dashboard config loaded:", data); // Para debug
+        console.log("Configuración cargada:", data);
         setConfig(data);
+
+        // Actualizar visibilidad de widgets
+        setWidgetVisibility((prev) => ({
+          ...prev,
+          mainStats:
+            data.widgets.find((w: any) => w.type === "mainStats")?.visible ??
+            true,
+          userStats:
+            data.widgets.find((w: any) => w.type === "userStats")?.visible ??
+            true,
+          topPerformers:
+            data.widgets.find((w: any) => w.type === "topPerformers")
+              ?.visible ?? true,
+          teamPerformance:
+            data.widgets.find((w: any) => w.type === "teamPerformance")
+              ?.visible ?? true,
+          tasksByStatus:
+            data.widgets.find((w: any) => w.type === "tasksByStatus")
+              ?.visible ?? true,
+          activeSprint:
+            data.widgets.find((w: any) => w.type === "activeSprint")?.visible ??
+            true,
+          projectSummary:
+            data.widgets.find((w: any) => w.type === "projectSummary")
+              ?.visible ?? true,
+          recentActivity:
+            data.widgets.find((w: any) => w.type === "recentActivity")
+              ?.visible ?? true,
+        }));
       } catch (error) {
         console.error("Error loading dashboard config:", error);
-        // Usar configuración por defecto en caso de error
-        setConfig({
-          userId: 1,
-          layout: "grid",
-          widgets: [
-            {
-              id: "default-1",
-              type: "activeSprint",
-              position: 0,
-              visible: true,
-            },
-            {
-              id: "default-2",
-              type: "projectSummary",
-              position: 1,
-              visible: true,
-            },
-          ],
-        });
       }
     };
     loadConfig();
@@ -746,7 +755,9 @@ export default function DashboardPage() {
           {/* Sprint Activo */}
           {widgetVisibility.activeSprint && (
             <Card key="active-sprint" className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Sprint Activo</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                Progreso del Sprint{" "}
+              </h2>
               {stats.activeSprint ? (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -840,6 +851,21 @@ export default function DashboardPage() {
             </div>
           </Card>
         )}
+
+        {/* Gráfico de Estadísticas Mensuales */}
+        <TaskStatsChart
+          data={
+            stats.monthlyStats || [
+              { month: "Ene", completadas: 45, pendientes: 28, urgentes: 12 },
+              { month: "Feb", completadas: 52, pendientes: 23, urgentes: 8 },
+              { month: "Mar", completadas: 49, pendientes: 25, urgentes: 11 },
+              { month: "Abr", completadas: 63, pendientes: 20, urgentes: 9 },
+              { month: "May", completadas: 58, pendientes: 28, urgentes: 14 },
+              { month: "Jun", completadas: 48, pendientes: 24, urgentes: 10 },
+            ]
+          }
+        />
+
         <DashboardConfigDialog
           open={configOpen}
           onOpenChange={setConfigOpen}
