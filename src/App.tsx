@@ -28,6 +28,8 @@ import PaginaPruebasPage from "./pages/pruebas/paginaPruebas";
 import RolesPermisosPage from "./pages/roles/roles";
 import SearchTaskPage from "./pages/backlog/searchTasks";
 import PasswordManagerPage from "./pages/password/passManager";
+import WidgetPage from "./pages/pruebas/widgetsDashboard";
+import CargaHorasPage from "./pages/pruebas/cargaHoras";
 
 const router = createBrowserRouter([
   {
@@ -47,6 +49,22 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <PaginaPruebasPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/widgets",
+    element: (
+      <ProtectedRoute>
+        <WidgetPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/cargahoras",
+    element: (
+      <ProtectedRoute>
+        <CargaHorasPage />
       </ProtectedRoute>
     ),
   },

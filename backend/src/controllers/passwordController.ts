@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../config/db';
 import { v4 as uuidv4 } from 'uuid';
+import { encrypt, decrypt } from '../utils/crypto';
 
 // Extend Express Request interface to include 'user'
 declare global {
@@ -88,9 +89,21 @@ export const getPasswords = async (req: Request, res: Response) => {
         })
       );
       console.log('Final processed passwords:', passwordsWithOwners.length);
-      res.json(passwordsWithOwners);
+      // Desencriptar campo password
+      const desencriptadas = passwordsWithOwners.map((p: any) => ({
+        ...p,
+        password: p.password ? decrypt(p.password) : '',
+      }));
+      res.json(desencriptadas);
     } else {
-      res.json(passwords);
+      // Desencriptar campo password
+      const desencriptadas = Array.isArray(passwords)
+        ? passwords.map((p: any) => ({
+            ...p,
+            password: p.password ? decrypt(p.password) : '',
+          }))
+        : passwords;
+      res.json(desencriptadas);
     }
   } catch (error) {
     console.error('Error in getPasswords:', error);
@@ -106,14 +119,14 @@ export const createPassword = async (req: Request, res: Response) => {
     const userId = req.user?.id;
     const { title, username, password, url, notes, folder_id } = req.body;
     const id = uuidv4();
-
+    // Encriptar la contraseña antes de guardar
+    const encryptedPassword = encrypt(password);
     await connection.query(
       `INSERT INTO password_entries 
        (id, user_id, title, username, password, url, notes, folder_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, userId, title, username, password, url, notes, folder_id]
+      [id, userId, title, username, encryptedPassword, url, notes, folder_id]
     );
-
     res.status(201).json({ id, message: 'Password created successfully' });
   } catch (error) {
     console.error('Error in createPassword:', error);
@@ -149,12 +162,14 @@ export const updatePassword = async (req: Request, res: Response) => {
       );
     } else {
       const { title, username, password, url, notes, folder_id } = req.body;
+      // Encriptar la contraseña si se está actualizando
+      const encryptedPassword = password ? encrypt(password) : undefined;
       await connection.query(
         `UPDATE password_entries 
          SET title = ?, username = ?, password = ?, 
              url = ?, notes = ?, folder_id = ?
          WHERE id = ? AND user_id = ?`,
-        [title, username, password, url, notes, folder_id, id, userId]
+        [title, username, encryptedPassword, url, notes, folder_id, id, userId]
       );
     }
 

@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SharePasswordDialog } from "@/components/password/share-password-dialog";
 import { toast } from "sonner";
+import { Toaster } from "sonner";
 
 interface PasswordDetailsSheetProps {
   password: PasswordEntry | null;
@@ -64,6 +65,9 @@ export function PasswordDetailsSheet({
 
   return (
     <>
+      <Toaster position="top-right" richColors closeButton />
+
+      {/* Contenido del Sheet */}
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="p-0">
           <Card className="w-full h-full overflow-y-auto p-4 space-y-2 flex flex-col">
@@ -256,14 +260,14 @@ export function PasswordDetailsSheet({
                     <div className="flex items-center justify-between text-muted-foreground">
                       <span>Creado:</span>
                       <span>
-                        {new Date(password.created_at).toLocaleString()}
+                        {new Date(password.createdAt).toLocaleString()}
                       </span>
                     </div>
-                    {password.updated_at && (
+                    {password.updatedAt && (
                       <div className="flex items-center justify-between text-muted-foreground">
                         <span>Última modificación:</span>
                         <span>
-                          {new Date(password.updated_at).toLocaleString()}
+                          {new Date(password.updatedAt).toLocaleString()}
                         </span>
                       </div>
                     )}

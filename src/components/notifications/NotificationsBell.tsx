@@ -72,7 +72,7 @@ export function NotificationsBell({ userId }: { userId: number }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-80 max-h-96 overflow-auto menu-notificaciones">
         <div className="flex flex-col prueba">
-          <div className="p-2 font-bold flex justify-between items-center gap-2">
+          <div className="p-2 font-bold flex justify-between items-center gap-2 w-96">
             <span>Notificaciones</span>
             <div className="flex gap-1">
               <Button

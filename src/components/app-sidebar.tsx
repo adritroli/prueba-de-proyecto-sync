@@ -1,11 +1,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
-import {
-  AudioWaveform,
-  Command,
-  GalleryVerticalEnd,
-  LucideIcon,
-} from "lucide-react";
+import { TbDeviceIpadHorizontalDollar } from "react-icons/tb";
+
 import { FaUserShield } from "react-icons/fa6";
 
 import { ImHome } from "react-icons/im";
@@ -14,6 +10,8 @@ import { MdMenuBook } from "react-icons/md";
 import { HiMiniInboxStack } from "react-icons/hi2";
 import { RiFolderSettingsFill } from "react-icons/ri";
 import { IoAlertCircle } from "react-icons/io5";
+import { TbDeviceIpadHorizontalCode } from "react-icons/tb";
+import { TbDeviceIpadHorizontal } from "react-icons/tb";
 
 import { NavMain } from "@/components/nav-main";
 import { NavProjects } from "@/components/nav-projects";
@@ -29,11 +27,22 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 
-interface User {
+export interface User {
   id: number;
+  name: string;
   username: string;
   email: string;
+  user_status: "active" | "inactive" | "paused";
+  role_group_id: number;
+  team_id: number;
   avatar?: string;
+  audit_date?: string;
+  modif_date?: string;
+  last_name?: string;
+  last_connection?: string;
+  connection_status?: "online" | "away" | "offline";
+  team_name?: string;
+  name_rol?: string;
 }
 
 // This is sample data.
@@ -45,19 +54,19 @@ const data = {
   },
   teams: [
     {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
+      name: "ProjectSync Enterprise",
+      logo: TbDeviceIpadHorizontalDollar,
       plan: "Enterprise",
     },
     {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
+      name: "ProjectSync Devs",
+      logo: TbDeviceIpadHorizontalCode,
+      plan: "Pro Developer",
     },
     {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
+      name: "ProjectSync Free",
+      logo: TbDeviceIpadHorizontal,
+      plan: "Free Plan ",
     },
   ],
 
@@ -84,24 +93,32 @@ const data = {
           title: "Pagina de Pruebas",
           url: "/pruebas",
         },
+        {
+          title: "Widgets Dashboard",
+          url: "/widgets",
+        },
+        {
+          title: "Carga de Horas",
+          url: "/cargaHoras",
+        },
       ],
     },
     {
       title: "Backlog & Sprints",
       url: "#",
       icon: HiMiniInboxStack,
-      isActive: true,
+      isActive: false,
       items: [
         {
           title: "Search Tasks",
           url: "/searchTasks",
         },
         {
-          title: "Tasks Pending",
+          title: "BackLog Tasks",
           url: "/tasks",
         },
         {
-          title: "Sprint in Progress",
+          title: "Sprints in Progress",
           url: "/sprintActivo",
         },
         {
@@ -209,9 +226,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         const user = JSON.parse(userStr);
         setUserData({
           id: user.id,
-          username: user.username || user.name,
-          email: user.email,
+          name: user.name || user.username || "Usuario",
+          username: user.username || user.name || "usuario",
+          email: user.email || "email@ejemplo.com",
+          user_status: user.user_status || "active",
+          role_group_id: user.role_group_id || 0,
+          team_id: user.team_id || 0,
           avatar: user.avatar || `/avatars/${user.id}.png`,
+          audit_date: user.audit_date,
+          modif_date: user.modif_date,
+          last_name: user.last_name,
+          last_connection: user.last_connection,
+          connection_status: user.connection_status,
+          team_name: user.team_name,
+          name_rol: user.name_rol,
         });
       } catch (error) {
         console.error("Error parsing user data:", error);

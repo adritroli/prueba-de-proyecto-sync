@@ -200,7 +200,7 @@ export default function PasswordManagerPage() {
       const data = await response.json();
       console.log("Received passwords:", data);
 
-      setPasswords(data);
+      setPasswords(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching passwords:", error);
       toast.error("Error al cargar las contraseñas");
