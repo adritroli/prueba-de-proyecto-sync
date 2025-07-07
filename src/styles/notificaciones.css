@@ -8,6 +8,10 @@
   padding: 0.5rem;
   border-radius: 0.5rem;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  left: 0 !important;
+  right: auto !important;
+  min-width: 260px;
+  max-width: 320px;
 }
 
 .tarjeta-notificaciones {
@@ -17,4 +21,13 @@
 .trigger-notificaciones {
   cursor: pointer;
   border: solid 1px #262626;
+}
+
+.span-notificaciones {
+  top: -5px !important;
+  right: -5px !important;
+}
+
+.btn-noti {
+  cursor: pointer;
 }

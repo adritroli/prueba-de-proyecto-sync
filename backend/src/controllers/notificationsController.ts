@@ -18,6 +18,20 @@ export const markNotificationRead = async (req: Request, res: Response) => {
   res.json({ success: true });
 };
 
+// Marcar todas las notificaciones como leídas
+export const markAllNotificationsRead = async (req: Request, res: Response) => {
+  const userId = req.params.userId;
+  await pool.query("UPDATE notifications SET is_read = 1 WHERE user_id = ?", [userId]);
+  res.json({ success: true });
+};
+
+// Eliminar todas las notificaciones de un usuario
+export const clearAllNotifications = async (req: Request, res: Response) => {
+  const userId = req.params.userId;
+  await pool.query("DELETE FROM notifications WHERE user_id = ?", [userId]);
+  res.json({ success: true });
+};
+
 // Crear notificación
 export const createNotification = async (userId: number, type: string, message: string) => {
   try {
